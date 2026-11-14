@@ -572,6 +572,19 @@ export async function cancelSession(sessionId: string): Promise<void> {
   if (error) throw new Error(toThaiError(error))
 }
 
+export async function updateSessionNote(sessionId: string, note: string): Promise<void> {
+  const client = requireSupabase()
+  const trimmed = note.trim()
+  if (Array.from(trimmed).length > 5000) {
+    throw new Error('โน้ตต้องยาวไม่เกิน 5,000 ตัวอักษร')
+  }
+  const { error } = await client
+    .from('sessions')
+    .update({ note: trimmed })
+    .eq('id', sessionId)
+  if (error) throw new Error(toThaiError(error))
+}
+
 export async function restoreSession(session: Session): Promise<void> {
   const client = requireSupabase()
   const { error } = await client

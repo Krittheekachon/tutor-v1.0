@@ -36,6 +36,7 @@ import {
 import { ExtraSessionModal } from './ExtraSessionModal'
 import { LessonModal } from './LessonModal'
 import { MoveSessionModal } from './MoveSessionModal'
+import { SessionNoteModal } from './SessionNoteModal'
 import { AttachmentButton } from './AttachmentButton'
 
 interface SessionView {
@@ -66,6 +67,7 @@ export function DashboardPage({
   const [extraOpen, setExtraOpen] = useState(false)
   const [lessonSessionId, setLessonSessionId] = useState<string | null>(null)
   const [moveSessionId, setMoveSessionId] = useState<string | null>(null)
+  const [noteSessionId, setNoteSessionId] = useState<string | null>(null)
   const [cancelSessionTarget, setCancelSessionTarget] = useState<Session | null>(null)
   const [canceling, setCanceling] = useState(false)
 
@@ -176,6 +178,9 @@ export function DashboardPage({
     : null
   const moveView = moveSessionId
     ? sessionViews.find((item) => item.session.id === moveSessionId) ?? null
+    : null
+  const noteView = noteSessionId
+    ? sessionViews.find((item) => item.session.id === noteSessionId) ?? null
     : null
 
   function goMonth(offset: number) {
@@ -368,11 +373,12 @@ export function DashboardPage({
                       const student = course ? studentById.get(course.student_id) : null
                       if (!course || !student) return null
                       const isCanceled = session.status === 'canceled'
+                      const hasNote = session.note.trim().length > 0
                       return (
                         <button
                           key={session.id}
                           type="button"
-                          className={`calendar-event ${isCanceled ? 'is-canceled' : ''}`}
+                          className={`calendar-event ${isCanceled ? 'is-canceled' : ''} ${hasNote ? 'has-note' : ''}`}
                           style={{
                             backgroundColor: isCanceled ? '#f2ebee' : hexToRgba(student.color_hex, 0.46),
                             borderLeftColor: isCanceled ? '#c9b8c0' : student.color_hex,
@@ -385,6 +391,11 @@ export function DashboardPage({
                         >
                           <span className="calendar-event-time">{session.start_time.slice(0, 5)}</span>
                           <span className="calendar-event-name">{student.nickname}</span>
+                          {hasNote && (
+                            <span className="calendar-event-note" title="มีโน้ต" aria-label="มีโน้ต">
+                              ✎
+                            </span>
+                          )}
                         </button>
                       )
                     })}
@@ -402,6 +413,7 @@ export function DashboardPage({
           <span className="calendar-legend">
             <i className="legend-dot legend-confirmed" /> นัดปกติ
             <i className="legend-dot legend-canceled" /> ยกเลิก
+            <span className="legend-note">✎</span> มีโน้ต
           </span>
         </div>
       </section>
@@ -459,6 +471,7 @@ export function DashboardPage({
                 onMove={() => setMoveSessionId(viewItem.session.id)}
                 onCancel={() => setCancelSessionTarget(viewItem.session)}
                 onRestore={() => void handleRestore(viewItem.session)}
+                onNote={() => setNoteSessionId(viewItem.session.id)}
               />
             ))}
           </div>
@@ -492,6 +505,16 @@ export function DashboardPage({
         />
       )}
 
+      {noteView && (
+        <SessionNoteModal
+          open={Boolean(noteSessionId)}
+          session={noteView.session}
+          course={noteView.course}
+          student={noteView.student}
+          onClose={() => setNoteSessionId(null)}
+        />
+      )}
+
       <ConfirmDialog
         open={Boolean(cancelSessionTarget)}
         title="ยกเลิกนัดครั้งนี้?"
@@ -521,6 +544,7 @@ function SessionCard({
   onMove,
   onCancel,
   onRestore,
+  onNote,
 }: {
   viewItem: SessionView
   now: Date
@@ -528,6 +552,7 @@ function SessionCard({
   onMove: () => void
   onCancel: () => void
   onRestore: () => void
+  onNote: () => void
 }) {
   const { session, course, student, log, attachments, actualMinutes, purchasedMinutes, remainingMinutes, progressPct } =
     viewItem
@@ -535,6 +560,7 @@ function SessionCard({
   const isMoved = session.status === 'moved'
   const isExtra = session.kind === 'extra'
   const isTaught = Boolean(log)
+  const hasNote = session.note.trim().length > 0
   const plannedMinutes = sessionDurationMinutes(session.start_time, session.end_time)
   const isPast = sessionEndInstant(session.session_date, session.end_time).getTime() <= now.getTime()
   const originalChanged =
@@ -566,16 +592,27 @@ function SessionCard({
             <h3>{student.nickname}</h3>
             <span className="session-subject">{course.subject}</span>
           </div>
-          <div className="session-badges">
-            {isExtra && <Badge tone="peach">นอกรอบ</Badge>}
-            {isTaught && (
-              <Badge tone="green" dot>
-                สอนแล้ว
-              </Badge>
-            )}
-            {isMoved && <Badge tone="purple">เลื่อนแล้ว</Badge>}
-            {isCanceled && <Badge tone="gray">ยกเลิก</Badge>}
-            {!isTaught && !isCanceled && isPast && <Badge tone="red">ยังไม่บันทึก</Badge>}
+          <div className="session-title-tools">
+            <button
+              type="button"
+              className={`session-note-trigger ${hasNote ? 'has-note' : ''}`}
+              onClick={onNote}
+              title={hasNote ? 'แก้ไขโน้ตของนัดนี้' : 'เพิ่มโน้ตของนัดนี้'}
+            >
+              <Icon name="note" size={13} />
+              <span>{hasNote ? 'มีโน้ต' : 'โน้ต'}</span>
+            </button>
+            <div className="session-badges">
+              {isExtra && <Badge tone="peach">นอกรอบ</Badge>}
+              {isTaught && (
+                <Badge tone="green" dot>
+                  สอนแล้ว
+                </Badge>
+              )}
+              {isMoved && <Badge tone="purple">เลื่อนแล้ว</Badge>}
+              {isCanceled && <Badge tone="gray">ยกเลิก</Badge>}
+              {!isTaught && !isCanceled && isPast && <Badge tone="red">ยังไม่บันทึก</Badge>}
+            </div>
           </div>
         </div>
 
@@ -592,9 +629,31 @@ function SessionCard({
           )}
         </div>
 
-        <p className="session-content">
-          {session.note || course.content || 'ยังไม่ได้ระบุเนื้อหาที่วางไว้'}
-        </p>
+        {course.content ? (
+          <p className="session-content">{course.content}</p>
+        ) : !hasNote ? (
+          <p className="session-content">ยังไม่ได้ระบุเนื้อหาที่วางไว้</p>
+        ) : null}
+
+        {hasNote && (
+          <div className="session-note-box">
+            <span className="session-note-icon">
+              <Icon name="note" size={15} />
+            </span>
+            <div>
+              <span className="session-note-label">โน้ตของนัดนี้</span>
+              <p>{session.note}</p>
+            </div>
+            <button
+              type="button"
+              className="session-note-edit"
+              onClick={onNote}
+              aria-label="แก้ไขโน้ต"
+            >
+              <Icon name="edit" size={14} />
+            </button>
+          </div>
+        )}
 
         {attachments.length > 0 && (
           <div className="session-attachments">
