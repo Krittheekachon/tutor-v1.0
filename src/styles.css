@@ -472,11 +472,21 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  max-width: 210px;
-  padding: 3px 9px 3px 3px;
+  max-width: 235px;
+  padding: 3px 10px 3px 3px;
   border: 1px solid #f0dbe4;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.user-chip:hover {
+  background: #fff;
+  border-color: #e6bfce;
+  box-shadow: var(--shadow-sm);
 }
 
 .user-avatar {
@@ -492,11 +502,77 @@
   font-weight: 700;
 }
 
-.user-email {
+.user-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.user-copy strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #967985;
+  color: #6d4b5a;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.user-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #a88b97;
+  font-size: 8.5px;
+  font-weight: 400;
+}
+
+.profile-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  margin-bottom: 17px;
+  border: 1px solid #f0dce4;
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(169, 215, 239, 0.18), transparent 13rem),
+    #fff9fb;
+}
+
+.profile-preview-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f8c3d4, #ef9fbb);
+  color: #653744;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.profile-preview-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.profile-preview-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #4f3541;
+  font-size: 16px;
+}
+
+.profile-preview-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
   font-size: 10.5px;
 }
 
@@ -3017,8 +3093,8 @@
     display: none;
   }
 
-  .user-email {
-    max-width: 130px;
+  .user-copy {
+    max-width: 150px;
   }
 
   .dashboard-hero {
@@ -3036,7 +3112,7 @@
     gap: 12px;
   }
 
-  .user-email {
+  .user-copy {
     display: none;
   }
 
@@ -3222,7 +3298,13 @@
   }
 
   .user-chip {
-    display: none;
+    display: flex;
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
   }
 
   .logout-button {
@@ -3849,6 +3931,37 @@
 }
 
 @media (max-width: 420px) {
+  .header-inner {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .brand-bow svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .brand-title {
+    font-size: 16.5px;
+  }
+
+  .header-actions {
+    gap: 0;
+  }
+
+  .refresh-button,
+  .user-chip,
+  .logout-button {
+    width: 30px;
+    height: 30px;
+  }
+
+  .user-avatar {
+    width: 27px;
+    height: 27px;
+    font-size: 10.5px;
+  }
+
   .calendar-title-wrap p {
     display: none;
   }

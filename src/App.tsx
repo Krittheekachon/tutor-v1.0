@@ -7,6 +7,8 @@ import { AppDataProvider, useAppData } from './state/AppDataContext'
 import { DashboardPage } from './components/DashboardPage'
 import { StudentsPage } from './components/StudentsPage'
 import { LoginPage, MissingConfigPage } from './components/LoginPage'
+import { ProfileModal } from './components/ProfileModal'
+import { getDisplayName, getInitial } from './lib/profile'
 import {
   Bow,
   Button,
@@ -82,12 +84,15 @@ function AuthApp() {
 
   return (
     <AppDataProvider userId={session.user.id}>
-      <DataGate email={session.user.email ?? ''} />
+      <DataGate
+        email={session.user.email ?? ''}
+        displayName={getDisplayName(session.user)}
+      />
     </AppDataProvider>
   )
 }
 
-function DataGate({ email }: { email: string }) {
+function DataGate({ email, displayName }: { email: string; displayName: string }) {
   const { data, loading, error, refresh, refreshing } = useAppData()
 
   if (loading) {
@@ -112,15 +117,21 @@ function DataGate({ email }: { email: string }) {
     )
   }
 
-  return <AuthenticatedApp email={email} />
+  return <AuthenticatedApp email={email} displayName={displayName} />
 }
 
-function AuthenticatedApp({ email }: { email: string }) {
+function AuthenticatedApp({ email, displayName }: { email: string; displayName: string }) {
   const { data, error, refresh, refreshing } = useAppData()
   const { pushToast } = useToast()
   const [tab, setTab] = useState<Tab>(() => tabFromHash())
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [localDisplayName, setLocalDisplayName] = useState(displayName)
+
+  useEffect(() => {
+    setLocalDisplayName(displayName)
+  }, [displayName])
 
   useEffect(() => {
     const onHashChange = () => setTab(tabFromHash())
@@ -155,7 +166,7 @@ function AuthenticatedApp({ email }: { email: string }) {
 
   if (!data) return <LoadingScreen message="กำลังโหลดตารางสอนของคุณ…" />
 
-  const avatar = (email || 'T').trim().charAt(0).toUpperCase()
+  const avatar = getInitial(localDisplayName)
 
   return (
     <div className="app-shell">
@@ -205,10 +216,19 @@ function AuthenticatedApp({ email }: { email: string }) {
             >
               {refreshing ? <Spinner label="กำลังรีเฟรช" /> : <Icon name="refresh" size={18} />}
             </button>
-            <div className="user-chip" title={email}>
+            <button
+              type="button"
+              className="user-chip"
+              onClick={() => setProfileOpen(true)}
+              title={`${localDisplayName} • ${email}`}
+              aria-label="แก้ไขชื่อที่แสดง"
+            >
               <span className="user-avatar">{avatar}</span>
-              <span className="user-email">{email}</span>
-            </div>
+              <span className="user-copy">
+                <strong>{localDisplayName}</strong>
+                <small>{email}</small>
+              </span>
+            </button>
             <button
               type="button"
               className="logout-button"
@@ -239,7 +259,10 @@ function AuthenticatedApp({ email }: { email: string }) {
 
       <main className="app-main">
         {tab === 'dashboard' ? (
-          <DashboardPage onGoToStudents={() => switchTab('students')} />
+          <DashboardPage
+            displayName={localDisplayName}
+            onGoToStudents={() => switchTab('students')}
+          />
         ) : (
           <StudentsPage />
         )}
@@ -272,6 +295,14 @@ function AuthenticatedApp({ email }: { email: string }) {
           <span>นักเรียน</span>
         </button>
       </nav>
+
+      <ProfileModal
+        open={profileOpen}
+        currentName={localDisplayName}
+        email={email}
+        onClose={() => setProfileOpen(false)}
+        onSaved={setLocalDisplayName}
+      />
 
       <ConfirmDialog
         open={logoutOpen}

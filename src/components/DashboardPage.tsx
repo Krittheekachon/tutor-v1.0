@@ -50,7 +50,13 @@ interface SessionView {
   progressPct: number
 }
 
-export function DashboardPage({ onGoToStudents }: { onGoToStudents: () => void }) {
+export function DashboardPage({
+  onGoToStudents,
+  displayName,
+}: {
+  onGoToStudents: () => void
+  displayName: string
+}) {
   const { data, refresh } = useAppData()
   const { pushToast } = useToast()
   const now = useNow(30_000)
@@ -221,11 +227,11 @@ export function DashboardPage({ onGoToStudents }: { onGoToStudents: () => void }
     <div className="page dashboard-page">
       <section className="dashboard-hero">
         <div className="hero-copy">
-          <span className="eyebrow">
+          <span className="eyebrow" title={displayName}>
             <span className="eyebrow-bow">
               <Bow size={17} />
             </span>
-            ปฏิทินการสอน
+            <span className="hero-owner-name">สวัสดี {displayName}</span>
           </span>
           <h1>{formatThaiDateLong(today)}</h1>
           <p>

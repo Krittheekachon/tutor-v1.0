@@ -198,6 +198,19 @@ export async function signInWithGoogle(): Promise<void> {
   if (error) throw new Error(toThaiError(error))
 }
 
+export async function updateDisplayName(displayName: string): Promise<void> {
+  const client = requireSupabase()
+  const trimmed = displayName.trim()
+  if (!trimmed) throw new Error('กรุณากรอกชื่อที่แสดง')
+  if (Array.from(trimmed).length > 60) throw new Error('ชื่อที่แสดงต้องยาวไม่เกิน 60 ตัวอักษร')
+  const { error } = await client.auth.updateUser({
+    data: {
+      display_name: trimmed,
+    },
+  })
+  if (error) throw new Error(toThaiError(error))
+}
+
 export async function signOutUser(): Promise<void> {
   const client = requireSupabase()
   const { error } = await client.auth.signOut()

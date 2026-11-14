@@ -979,6 +979,13 @@ svg {
   place-items: center;
 }
 
+.hero-owner-name {
+  max-width: min(52vw, 360px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .section-heading {
   display: flex;
   align-items: flex-end;
