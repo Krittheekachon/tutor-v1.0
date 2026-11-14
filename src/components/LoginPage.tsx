@@ -163,7 +163,7 @@ export function LoginPage({ initialError }: { initialError?: string | null }) {
             </span>
             <div>
               <h2 id="login-title">เข้าสู่ระบบ</h2>
-              <p>แต่ละบัญชีมีพื้นที่ตารางสอนแยกกัน</p>
+              <p>ยินดีต้อนรับกลับมา</p>
             </div>
           </div>
 
@@ -244,19 +244,19 @@ export function LoginPage({ initialError }: { initialError?: string | null }) {
             </Button>
           </form>
 
-          <div className="login-hint">
+          {/* <div className="login-hint">
             <Icon name="book" size={17} />
             <p>
               Google account ใหม่จะเริ่มพื้นที่ว่างของตัวเองโดยอัตโนมัติ
               และไม่เห็นข้อมูลของบัญชีอื่น
               ส่วนอีเมล/รหัสผ่านใช้กับบัญชีที่สร้างไว้ใน Supabase Dashboard
             </p>
-          </div>
+          </div> */}
 
-          <div className="login-security">
+          {/* <div className="login-security">
             <span className="security-dot" />
             ข้อมูลของคุณถูกป้องกันด้วย Row Level Security
-          </div>
+          </div> */}
         </div>
       </section>
 

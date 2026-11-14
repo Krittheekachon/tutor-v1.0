@@ -8,6 +8,7 @@ import { DashboardPage } from './components/DashboardPage'
 import { StudentsPage } from './components/StudentsPage'
 import { LoginPage, MissingConfigPage } from './components/LoginPage'
 import { ProfileModal } from './components/ProfileModal'
+import { CourseCompletionPrompt } from './components/CourseCompletionPrompt'
 import { getDisplayName, getInitial } from './lib/profile'
 import {
   Bow,
@@ -315,6 +316,7 @@ function AuthenticatedApp({ email, displayName }: { email: string; displayName: 
         onClose={() => setProfileOpen(false)}
         onSaved={setLocalDisplayName}
       />
+      <CourseCompletionPrompt />
 
       <ConfirmDialog
         open={logoutOpen}

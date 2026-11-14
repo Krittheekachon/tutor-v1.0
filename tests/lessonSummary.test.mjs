@@ -61,7 +61,12 @@ try {
   await page.evaluate(() => {
     const draw = CanvasRenderingContext2D.prototype.fillText
     window.reportLabels = []
-    CanvasRenderingContext2D.prototype.fillText = function (...args) { window.reportLabels.push(args[0]); return draw.apply(this, args) }
+    window.reportTextBounds = []
+    CanvasRenderingContext2D.prototype.fillText = function (...args) {
+      window.reportLabels.push(args[0])
+      window.reportTextBounds.push({ x: args[1], right: args[1] + this.measureText(args[0]).width, align: this.textAlign })
+      return draw.apply(this, args)
+    }
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
       writeText: async text => { window.copiedReport = text },
     } })
@@ -98,12 +103,14 @@ try {
   assert.ok(!copied.text.includes('ฝึกโจทย์เพิ่มเติม'))
   assert.equal(copied.status, 'คัดลอกแล้ว')
   assert.ok(!copied.text.includes('undefined'))
-  for (const width of [900, 360]) {
+  for (const width of [1024, 900, 768, 360]) {
     await page.setViewport({ width, height: 1000, deviceScaleFactor: 1 })
     assert.ok(await page.$eval('.lesson-report-image', element => element.getBoundingClientRect().right <= window.innerWidth))
     await page.screenshot({ path: `screenshots/lesson-summary-${width}.png` })
   }
   const labels = await page.evaluate(() => window.reportLabels)
+  const bounds = await page.evaluate(() => window.reportTextBounds)
+  assert.ok(bounds.every(item => item.align === 'left' && item.x >= 0 && item.right <= 800), 'all PNG text fits using physical positions without Safari center/right alignment')
   assert.ok(labels.some(text => text.startsWith('สะสมก่อนวันนี้')))
   assert.ok(!labels.includes('ขอบคุณที่ไว้วางใจ TutoNote'))
   assert.ok(!labels.includes('คัดลอกข้อความ'), 'buttons stay outside the export')

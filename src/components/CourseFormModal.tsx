@@ -18,7 +18,7 @@ export function CourseFormModal({
   onSaved,
 }: {
   open: boolean
-  mode: 'add' | 'edit'
+  mode: 'add' | 'edit' | 'renew'
   student: Student
   course?: Course | null
   onClose: () => void
@@ -60,6 +60,10 @@ export function CourseFormModal({
     if (!startDate) return 'กรุณาเลือกวันที่เริ่ม'
     const hourValue = Number(hours)
     if (!Number.isFinite(hourValue) || hourValue <= 0) return 'เวลาที่ซื้อต้องมากกว่า 0 ชั่วโมง'
+    if (mode === 'renew' && course) {
+      const actual = (data?.logs ?? []).filter(log => log.course_id === course.id).reduce((sum, log) => sum + log.actual_minutes, 0)
+      if (course.purchased_minutes + Math.round(hourValue * 60) <= actual) return 'กรุณาเพิ่มชั่วโมงให้มากกว่าเวลาที่สอนเกินไปแล้ว เพื่อให้มีชั่วโมงเรียนคงเหลือ'
+    }
     const priceValue = Number(price)
     if (!Number.isFinite(priceValue) || priceValue < 0) return 'ค่าเรียนต้องเป็น 0 บาทขึ้นไป'
     if (mode === 'add' && slots.length > 0) {
@@ -81,15 +85,15 @@ export function CourseFormModal({
     setBusy(true)
     setError(null)
     try {
-      if (mode === 'edit' && course) {
+      if ((mode === 'edit' || mode === 'renew') && course) {
         await updateCourse({
           ownerId,
           courseId: course.id,
           subject,
           startDate,
           content,
-          purchasedMinutes: Math.round(Number(hours) * 60),
-          priceBaht: Number(price),
+          purchasedMinutes: Math.round(Number(hours) * 60) + (mode === 'renew' ? course.purchased_minutes : 0),
+          priceBaht: Number(price) + (mode === 'renew' ? Number(course.price_baht) : 0),
           file,
         })
         const refreshed = await refresh()
@@ -133,7 +137,7 @@ export function CourseFormModal({
       open={open}
       onClose={onClose}
       busy={busy}
-      title={mode === 'add' ? `เพิ่มคอร์สให้ ${student.nickname}` : 'แก้ไขรายละเอียดคอร์ส'}
+      title={mode === 'add' ? `เพิ่มคอร์สให้ ${student.nickname}` : mode === 'renew' ? 'ต่อคอร์ส' : 'แก้ไขรายละเอียดคอร์ส'}
       subtitle={
         mode === 'add'
           ? 'คอร์สใหม่แยกชั่วโมง ค่าเรียน และตารางของตัวเอง'
@@ -147,7 +151,7 @@ export function CourseFormModal({
             ยกเลิก
           </Button>
           <Button type="submit" form="course-form" loading={busy} icon="check">
-            {mode === 'add' ? 'เพิ่มคอร์ส' : 'บันทึกการแก้ไข'}
+            {mode === 'add' ? 'เพิ่มคอร์ส' : mode === 'renew' ? 'ยืนยันต่อคอร์ส' : 'บันทึกการแก้ไข'}
           </Button>
         </>
       }
@@ -263,7 +267,8 @@ export function CourseFormModal({
           </div>
         )}
 
-        {mode === 'edit' && (
+        {mode === 'renew' && <p className="form-lead">กรอกชั่วโมงและค่าเรียนที่ซื้อเพิ่ม ระบบจะบวกกับยอดเดิมและคงตารางสอน ประวัติ และไฟล์ทั้งหมดไว้</p>}
+        {mode !== 'add' && (
           <div className="inline-note">
             <Icon name="repeat" size={16} />
             ต้องการเปลี่ยนวันหรือเวลาเรียนประจำ? ใช้ปุ่ม «แก้ตารางประจำ» ในรายละเอียดคอร์ส

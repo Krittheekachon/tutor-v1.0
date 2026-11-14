@@ -7,6 +7,7 @@ import {
   todayKey,
 } from './date'
 import { toThaiError } from './errors'
+import { selectCourseSessions } from './courseSessions'
 import { generateRuleDates, validateSlots } from './schedule'
 import {
   MAX_FILE_BYTES,
@@ -27,7 +28,6 @@ import type {
 } from './types'
 
 const PAGE_SIZE = 1000
-const SESSION_LOOKBACK_MONTHS = 60
 const SESSION_HORIZON_MONTHS = 36
 
 const ALLOWED_FILE_MIME_TYPES = new Set([
@@ -95,22 +95,20 @@ async function fetchAll<T>(table: string): Promise<T[]> {
 
 async function ensureRegularSessions(
   ownerId: string,
-  data: Pick<AppData, 'courses' | 'rules' | 'sessions'>,
+  data: Pick<AppData, 'courses' | 'rules' | 'sessions' | 'logs'>,
 ): Promise<number> {
   const client = requireSupabase()
   const today = todayKey()
-  const floor = addMonthsKey(today, -SESSION_LOOKBACK_MONTHS)
   const horizon = addMonthsKey(today, SESSION_HORIZON_MONTHS)
   const existingKeys = new Set(data.sessions.map((session) => session.recurrence_key))
   const rows: Array<Record<string, unknown>> = []
 
   for (const course of data.courses) {
+    if (course.archived_at) continue
     const courseRules = data.rules.filter((rule) => rule.course_id === course.id && rule.active)
     if (courseRules.length === 0) continue
-    const startFloor = course.start_date > floor ? course.start_date : floor
-    const endLimit = course.archived_at
-      ? (today < horizon ? today : horizon)
-      : horizon
+    const startFloor = course.start_date > today ? course.start_date : today
+    const endLimit = horizon
 
     for (const rule of courseRules) {
       const dates = generateRuleDates(rule, startFloor, endLimit)
@@ -137,16 +135,20 @@ async function ensureRegularSessions(
     }
   }
 
-  if (rows.length === 0) return 0
+  const candidates = rows.map(row => ({ ...row, id: String(row.recurrence_key) })) as unknown as Session[]
+  const neededKeys = new Set(data.courses.flatMap(course =>
+    selectCourseSessions(course, [...data.sessions, ...candidates], data.logs).map(session => session.recurrence_key)))
+  const neededRows = rows.filter(row => neededKeys.has(String(row.recurrence_key)))
+  if (neededRows.length === 0) return 0
 
-  for (let index = 0; index < rows.length; index += 400) {
-    const batch = rows.slice(index, index + 400)
+  for (let index = 0; index < neededRows.length; index += 400) {
+    const batch = neededRows.slice(index, index + 400)
     const { error } = await client
       .from('sessions')
       .upsert(batch, { onConflict: 'owner_id,recurrence_key', ignoreDuplicates: true })
     if (error) throw new Error(toThaiError(error))
   }
-  return rows.length
+  return neededRows.length
 }
 
 export async function loadAllData(ownerId: string): Promise<AppData> {
@@ -165,6 +167,7 @@ export async function loadAllData(ownerId: string): Promise<AppData> {
   if (inserted > 0) {
     base.sessions = await fetchAll<Session>('sessions')
   }
+  base.sessions = courses.flatMap(course => selectCourseSessions(course, base.sessions, logs))
   return base
 }
 

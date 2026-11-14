@@ -44,13 +44,20 @@ export function styleLessonReport(canvas: HTMLCanvasElement, report: Report, cou
     return lines
   }
   function text(value: string, x: number, y: number, size = sizes.main, fill = ink, weight = 400, align: CanvasTextAlign = 'left', italic = false) {
-    draw.push(() => { setFont(size, weight, italic); ctx!.textBaseline = 'top'; ctx!.fillStyle = fill; ctx!.textAlign = align; ctx!.fillText(value, x, y) })
+    draw.push(() => {
+      setFont(size, weight, italic); ctx!.textBaseline = 'top'; ctx!.fillStyle = fill
+      // Use physical coordinates: Safari can misplace aligned Thai text on canvas.
+      ctx!.textAlign = 'left'; ctx!.direction = 'ltr'
+      const offset = align === 'center' ? ctx!.measureText(value).width / 2 : align === 'right' ? ctx!.measureText(value).width : 0
+      ctx!.fillText(value, x - offset, y)
+    })
   }
   function centeredText(value: string, x: number, centerY: number, size: number, fill: string, weight = 400, align: CanvasTextAlign = 'left') {
     draw.push(() => {
-      setFont(size, weight); ctx!.textBaseline = 'alphabetic'; ctx!.textAlign = align; ctx!.fillStyle = fill
+      setFont(size, weight); ctx!.textBaseline = 'alphabetic'; ctx!.textAlign = 'left'; ctx!.direction = 'ltr'; ctx!.fillStyle = fill
       const metrics = ctx!.measureText(value)
-      ctx!.fillText(value, x, centerY + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2)
+      const offset = align === 'center' ? metrics.width / 2 : align === 'right' ? metrics.width : 0
+      ctx!.fillText(value, x - offset, centerY + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2)
     })
   }
   function box(x: number, y: number, w: number, h: number, radius: number, fill: string) {

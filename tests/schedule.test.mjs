@@ -4,7 +4,7 @@ import { build } from 'esbuild'
 
 // Exercise the actual save/load flow without touching the connected database.
 const tables = {
-  students: [], courses: [{ id: 'course', start_date: '2026-11-01', archived_at: null }],
+  students: [], courses: [{ id: 'course', start_date: '2026-11-01', purchased_minutes: 480, archived_at: null }],
   schedule_rules: [{ id: 'old-rule', course_id: 'course', active: true,
     weekday: 6, start_time: '09:00', end_time: '10:00', effective_from: '2026-11-01' }],
   sessions: Array.from({ length: 1105 }, (_, i) => ({
@@ -12,7 +12,7 @@ const tables = {
     kind: 'regular', status: 'scheduled', session_date: '2026-11-14',
     start_time: '09:00', end_time: '10:00', recurrence_key: `old-${i}`,
   })),
-  lesson_logs: [{ session_id: 'session-0000' }], payments: [], attachments: [],
+  lesson_logs: [{ session_id: 'session-0000', course_id: 'course', actual_minutes: 60 }], payments: [], attachments: [],
 }
 tables.sessions.push(
   { id: 'past', course_id: 'course', kind: 'regular', status: 'scheduled', session_date: '2026-11-07' },
@@ -20,6 +20,10 @@ tables.sessions.push(
   { id: 'canceled', course_id: 'course', kind: 'regular', status: 'canceled', session_date: '2026-11-14' },
   { id: 'extra', course_id: 'course', kind: 'extra', status: 'scheduled', session_date: '2026-11-14' },
 )
+for (const session of tables.sessions) {
+  session.start_time ??= '09:00'
+  session.end_time ??= '10:00'
+}
 const originalDate = globalThis.Date
 globalThis.Date = class extends originalDate {
   constructor(...args) { super(...(args.length ? args : ['2026-11-14T05:00:00Z'])) }
