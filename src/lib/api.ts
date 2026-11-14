@@ -179,6 +179,25 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return { ok: true }
 }
 
+/**
+ * เริ่ม Google OAuth ผ่าน Supabase
+ * ใช้ PKCE และ redirect กลับ origin ปัจจุบัน (ไม่พา hash ของแท็บไปด้วย)
+ */
+export async function signInWithGoogle(): Promise<void> {
+  const client = requireSupabase()
+  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  const { error } = await client.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      queryParams: {
+        prompt: 'select_account',
+      },
+    },
+  })
+  if (error) throw new Error(toThaiError(error))
+}
+
 export async function signOutUser(): Promise<void> {
   const client = requireSupabase()
   const { error } = await client.auth.signOut()

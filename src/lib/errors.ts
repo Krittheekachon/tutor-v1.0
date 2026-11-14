@@ -22,6 +22,18 @@ export function toThaiError(error: unknown): string {
   if (code === 'invalid_credentials' || lower.includes('invalid login credentials')) {
     return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'
   }
+  if (lower.includes('provider is not enabled') || lower.includes('unsupported provider')) {
+    return 'Google Login ยังไม่เปิดใช้งานใน Supabase กรุณาเปิด provider Google และตรวจสอบ Client ID/Secret'
+  }
+  if (lower.includes('redirect_uri_mismatch') || lower.includes('redirect uri mismatch')) {
+    return 'Redirect URL ไม่ตรงกับการตั้งค่า Google OAuth กรุณาตรวจสอบ Authorized redirect URI'
+  }
+  if (lower.includes('signups not allowed') || lower.includes('signup is disabled')) {
+    return 'บัญชี Google นี้ยังไม่ได้รับอนุญาตให้เข้าใช้งาน กรุณาใช้บัญชีเจ้าของที่สร้างไว้ใน Supabase'
+  }
+  if (lower.includes('access_denied') || lower.includes('user denied')) {
+    return 'คุณยกเลิกการเข้าสู่ระบบด้วย Google'
+  }
   if (code === 'email_not_confirmed' || lower.includes('email not confirmed')) {
     return 'อีเมลนี้ยังไม่ได้รับการยืนยัน กรุณายืนยันอีเมลผ่าน Supabase Dashboard ก่อนเข้าสู่ระบบ'
   }

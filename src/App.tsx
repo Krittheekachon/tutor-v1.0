@@ -38,6 +38,7 @@ export default function App() {
 function AuthApp() {
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -53,13 +54,15 @@ function AuthApp() {
         setSession(data.session)
         setAuthLoading(false)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!active) return
+        setAuthError(toThaiError(error))
         setAuthLoading(false)
       })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
+      if (nextSession) setAuthError(null)
       setAuthLoading(false)
     })
 
@@ -74,7 +77,7 @@ function AuthApp() {
   }
 
   if (!session) {
-    return <LoginPage />
+    return <LoginPage initialError={authError} />
   }
 
   return (

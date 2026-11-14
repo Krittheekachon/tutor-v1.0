@@ -4,6 +4,7 @@
 
 - **Frontend:** React 18 + TypeScript + Vite + CSS (ไม่มี UI framework)
 - **Backend:** Supabase PostgreSQL, Auth และ Storage (private bucket)
+- **Auth:** Email/password และ Google OAuth (Google เป็นตัวเลือก ต้องตั้งค่าเพิ่ม)
 - **Deploy:** Cloudflare Pages (static SPA)
 - **Timezone:** `Asia/Bangkok` และแสดงเวลาแบบ 24 ชั่วโมง
 - **ภาษา:** ภาษาไทยทั้งแอป รวม loading / empty / error state
@@ -11,6 +12,14 @@
 ---
 
 ## 1. ฟีเจอร์หลัก
+
+### การเข้าสู่ระบบ
+
+- หน้าเข้าสู่ระบบภาษาไทย ใช้บัญชีเจ้าของเพียงบัญชีเดียว
+- รองรับ **email/password** และ **Google OAuth**
+- ปุ่ม Google ใช้ PKCE flow และ redirect กลับ origin ปัจจุบัน
+- ไม่มีหน้าสมัครสมาชิกในแอป
+- เมื่อปิด **Allow new users to sign up** แล้ว จะมีเพียงบัญชีที่มีสิทธิ์อยู่แล้วเท่านั้นที่เข้าได้
 
 ### ปฏิทินและบันทึกการสอน
 
@@ -167,6 +176,63 @@ migration นี้จะสร้าง:
 5. ไปที่ **Authentication → Settings** แล้วปิด **Allow anonymous sign-ins**
 6. อย่าสร้างหน้า Sign up ในแอป — โปรเจกต์นี้ไม่มีหน้าสมัครสมาชิกโดยตั้งใจ
 
+#### 3.3.1 เปิด Google Login (ไม่บังคับ)
+
+โค้ดแอปมีปุ่ม **ดำเนินการต่อด้วย Google** แล้ว แต่จะใช้ได้หลังตั้งค่า provider และ redirect URL เท่านั้น
+
+**ขั้นที่ 1 — Google Cloud Console**
+
+1. ไปที่ [Google Cloud Console](https://console.cloud.google.com/) แล้วสร้างหรือเลือก project
+2. ตั้งค่า **OAuth consent screen** (External) และเพิ่มอีเมลเจ้าของเป็น test user ระหว่างพัฒนา
+3. ไปที่ **APIs & Services → Credentials → Create credentials → OAuth client ID**
+4. เลือกประเภท **Web application**
+5. ใส่ **Authorized JavaScript origins**
+   ```text
+   http://localhost:5173
+   https://<โดเมน Cloudflare Pages ของคุณ>
+   ```
+6. ใส่ **Authorized redirect URI** ให้ตรงกับ callback ของ Supabase เท่านั้น
+   ```text
+   https://<project-ref>.supabase.co/auth/v1/callback
+   ```
+   ไม่ใช่ URL ของหน้าแอป
+7. คัดลอก **Client ID** และ **Client Secret**
+
+**ขั้นที่ 2 — Supabase**
+
+1. ไปที่ **Authentication → Providers → Google**
+2. เปิด provider Google
+3. ใส่ Client ID และ Client Secret ที่ได้จาก Google
+4. กด Save
+
+**ขั้นที่ 3 — URL Configuration ใน Supabase**
+
+ไปที่ **Authentication → URL Configuration**:
+
+```text
+Site URL:
+https://<โดเมน Cloudflare Pages ของคุณ>
+
+Redirect URLs:
+http://localhost:5173/**
+https://<โดเมน Cloudflare Pages ของคุณ>/**
+```
+
+ถ้าใช้ custom domain หรือ preview URL ของ Cloudflare Pages ให้เพิ่ม URL เหล่านั้นด้วย
+
+**ขั้นที่ 4 — ใช้อีเมลเจ้าของให้ตรงกัน**
+
+- บัญชีเจ้าของที่สร้างในข้อ 3.3 ควรใช้อีเมลเดียวกับบัญชี Google
+- Supabase จะเชื่อม identity ที่มีอีเมลเดียวกันให้อัตโนมัติ เมื่ออีเมลได้รับการยืนยันแล้ว
+- คงการปิด **Allow new users to sign up** ไว้ — Google Login จะเข้าได้เฉพาะบัญชีที่มีอยู่แล้ว
+- ถ้า Google account เป็นคนละอีเมลกับเจ้าของ ต้องสร้างบัญชีเจ้าของด้วยอีเมล Google นั้น หรือใช้ manual identity linking (แอปนี้ยังไม่มีหน้าจัดการ identity)
+
+> Client Secret ของ Google เก็บใน Supabase เท่านั้น ห้ามใส่ใน `.env.local` หรือ repository
+>
+> แอปใช้ PKCE และ `detectSessionInUrl` จึงไม่ต้องเพิ่ม environment variable สำหรับ Google
+
+เอกสารอ้างอิง: [Login with Google](https://supabase.com/docs/guides/auth/social-login/auth-google) และ [Identity Linking](https://supabase.com/docs/guides/auth/auth-identity-linking)
+
 ### 3.4 ตั้งค่า environment variables
 
 คัดลอกไฟล์:
@@ -199,6 +265,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key_here
 - database password
 - รหัสผ่านของเจ้าของ
 - JWT secret
+- Google OAuth Client Secret (เก็บใน Supabase Provider เท่านั้น)
 
 Frontend ใช้เฉพาะ Project URL และ publishable/anon key เท่านั้น
 
@@ -249,7 +316,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key_here
 /* /index.html 200
 ```
 
-หลัง deploy ควรเพิ่ม URL ของ Cloudflare Pages ใน **Supabase → Authentication → URL Configuration** ถ้าต้องการใช้ redirect ใด ๆ ในอนาคต (แอปนี้ใช้ email/password และไม่ได้ใช้ magic link)
+หลัง deploy ต้องเพิ่ม URL ของ Cloudflare Pages ใน **Supabase → Authentication → URL Configuration** และใน Google OAuth Authorized JavaScript origins ด้วย หากใช้ Google Login (ตามข้อ 3.3.1) มิฉะนั้น OAuth จะ redirect กลับไม่ได้
 
 > **สำคัญ:** environment variables ของ Vite ถูกฝังตอน build ต้องตั้งค่าให้ครบก่อนสั่ง build ทุกครั้ง หากเปลี่ยนค่าให้ redeploy
 
@@ -389,28 +456,31 @@ supabase/seed/demo.sql
 - ตรวจการแสดงหน้า Dashboard, รายชื่อนักเรียน, รายละเอียดนักเรียน/คอร์ส และเปิดฟอร์มเพิ่มนักเรียน/เพิ่มนัดนอกรอบ/บันทึกการสอนด้วยข้อมูลตัวอย่างชั่วคราวในเครื่อง (ไม่ได้ยิง API จริง)
 - ตรวจการแสดงเวลา 24 ชั่วโมงในช่องกรอก (ใช้ `TimeInput` แบบบังคับ HH:MM)
 - ฟอร์มตั้งตาราง เลื่อน/ยกเลิกนัด การรับเงิน และไฟล์แนบ ตรวจด้วย typecheck และการอ่านโค้ด แต่ยังไม่ได้กดยืนยันกับ Supabase จริง
+- เพิ่มโค้ด Google OAuth (PKCE + `detectSessionInUrl`) และตรวจ typecheck/build ผ่านแล้ว
 
-**ยังไม่ได้ทดสอบ end-to-end กับ Supabase project จริงใน environment นี้** เนื่องจากไม่มี Project URL, publishable key และบัญชีเจ้าของจริง จึงยังไม่ได้ยืนยัน:
+**ยังไม่ได้ทดสอบ end-to-end กับ Supabase project จริงใน environment นี้** เนื่องจากไม่มี Project URL, publishable key, บัญชีเจ้าของ และ Google OAuth credentials จริง จึงยังไม่ได้ยืนยัน:
 
 - RLS กับ request จริงของ role `anon` / `authenticated`
 - Storage policy และ signed URL กับไฟล์จริง
 - การเปิดแอปอีกเบราว์เซอร์แล้วเห็นข้อมูลเดิม
-- การเข้าสู่ระบบ/ออกจากระบบกับบัญชีจริง
+- การเข้าสู่ระบบ/ออกจากระบบด้วย email/password กับบัญชีจริง
+- Google OAuth redirect และการเชื่อม identity ของบัญชีเจ้าของ
 
 ### Checklist หลังเชื่อม Supabase จริง
 
-1. เข้าสู่ระบบด้วยบัญชีเจ้าของ
-2. เพิ่มนักเรียน 1 คน พร้อมคอร์ส 8 ชั่วโมง ราคา 4,000 บาท และตารางประจำ 1 ช่วง
-3. เปิดปฏิทิน ตรวจว่ามีนัดในอนาคต และรีเฟรชซ้ำแล้วไม่มีนัดซ้ำ
-4. เพิ่มนัดนอกรอบ เลือกนักเรียนและคอร์สเดิม
-5. กด **บันทึกหลังสอน** 1 ชั่วโมง 30 นาที ตรวจยอดสะสมและชั่วโมงคงเหลือ
-6. เปิดแก้ไขบันทึกเป็น 1 ชั่วโมง ตรวจว่ายอดสะสมลดลงและไม่ถูกบวกซ้ำ
-7. ทดสอบเลื่อนนัดและยกเลิกนัด แล้วรีเฟรชหน้าจอ
-8. อัปโหลดไฟล์แนบ เปิดด้วย signed URL และตรวจว่าลิงก์หมดอายุใน 60 วินาที
-9. ออกจากระบบ แล้วลองเข้า URL ตรงของ Supabase REST/Storage ด้วย role `anon` ต้องถูกปฏิเสธ
-10. เปิดเบราว์เซอร์อีกตัวหรือหน้าต่างไม่ระบุตัวตน เข้าสู่ระบบด้วยบัญชีเดิม ต้องเห็นข้อมูลเดิม
-11. สร้างคอร์สที่มีประวัติการสอน แล้วตรวจว่าปุ่มลบถาวรถูกซ่อน/ถูกปฏิเสธ และใช้ **เก็บเข้าคลัง** ได้
-12. ตรวจตารางซ้อนเวลา: นัดต่อกันพอดีต้องผ่าน, นัดซ้อนต้องมีคำเตือน
+1. เข้าสู่ระบบด้วยอีเมล/รหัสผ่านของเจ้าของ
+2. ตั้งค่า Google provider ตามข้อ 3.3.1 แล้วออกจากระบบ จากนั้นกด **ดำเนินการต่อด้วย Google** ด้วยอีเมลเดียวกับเจ้าของ ต้องกลับเข้าแอปได้และเห็นข้อมูลเดิม
+3. เพิ่มนักเรียน 1 คน พร้อมคอร์ส 8 ชั่วโมง ราคา 4,000 บาท และตารางประจำ 1 ช่วง
+4. เปิดปฏิทิน ตรวจว่ามีนัดในอนาคต และรีเฟรชซ้ำแล้วไม่มีนัดซ้ำ
+5. เพิ่มนัดนอกรอบ เลือกนักเรียนและคอร์สเดิม
+6. กด **บันทึกหลังสอน** 1 ชั่วโมง 30 นาที ตรวจยอดสะสมและชั่วโมงคงเหลือ
+7. เปิดแก้ไขบันทึกเป็น 1 ชั่วโมง ตรวจว่ายอดสะสมลดลงและไม่ถูกบวกซ้ำ
+8. ทดสอบเลื่อนนัดและยกเลิกนัด แล้วรีเฟรชหน้าจอ
+9. อัปโหลดไฟล์แนบ เปิดด้วย signed URL และตรวจว่าลิงก์หมดอายุใน 60 วินาที
+10. ออกจากระบบ แล้วลองเข้า URL ตรงของ Supabase REST/Storage ด้วย role `anon` ต้องถูกปฏิเสธ
+11. เปิดเบราว์เซอร์อีกตัวหรือหน้าต่างไม่ระบุตัวตน เข้าสู่ระบบด้วยบัญชีเดิม ต้องเห็นข้อมูลเดิม
+12. สร้างคอร์สที่มีประวัติการสอน แล้วตรวจว่าปุ่มลบถาวรถูกซ่อน/ถูกปฏิเสธ และใช้ **เก็บเข้าคลัง** ได้
+13. ตรวจตารางซ้อนเวลา: นัดต่อกันพอดีต้องผ่าน, นัดซ้อนต้องมีคำเตือน
 
 ---
 

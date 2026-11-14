@@ -1,18 +1,84 @@
-import { useState, type FormEvent } from 'react'
-import { signInWithEmail } from '../lib/api'
+import { useEffect, useState, type FormEvent } from 'react'
+import { signInWithEmail, signInWithGoogle } from '../lib/api'
 import { toThaiError } from '../lib/errors'
 import { Bow, Button, Icon, Spinner } from './ui'
 
-export function LoginPage() {
+function GoogleIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.12-1.43.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.77.42 3.44 1.18 4.94l3.66-2.84z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1a11 11 0 0 0-9.82 6.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"
+      />
+    </svg>
+  )
+}
+
+function readOAuthErrorFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const search = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const code =
+    search.get('error_code') ??
+    hash.get('error_code') ??
+    search.get('error') ??
+    hash.get('error')
+  const description =
+    search.get('error_description') ??
+    hash.get('error_description') ??
+    search.get('error_message') ??
+    hash.get('error_message')
+
+  if (!code && !description) return null
+  const combined = `${code ?? ''} ${description ?? ''}`.toLowerCase()
+
+  if (combined.includes('access_denied')) return 'คุณยกเลิกการเข้าสู่ระบบด้วย Google'
+  if (combined.includes('provider is not enabled')) {
+    return 'Google Login ยังไม่เปิดใช้งานใน Supabase กรุณาเปิด provider Google ก่อน'
+  }
+  if (combined.includes('redirect_uri_mismatch')) {
+    return 'Redirect URL ไม่ตรงกับการตั้งค่า Google OAuth กรุณาตรวจสอบ Authorized redirect URI'
+  }
+  if (combined.includes('signups not allowed')) {
+    return 'บัญชี Google นี้ยังไม่ได้รับอนุญาตให้เข้าใช้งาน กรุณาใช้บัญชีเจ้าของที่สร้างไว้ใน Supabase'
+  }
+  return description
+    ? `เข้าสู่ระบบด้วย Google ไม่สำเร็จ: ${description}`
+    : 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง'
+}
+
+export function LoginPage({ initialError }: { initialError?: string | null }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [googleBusy, setGoogleBusy] = useState(false)
+  const [error, setError] = useState<string | null>(initialError ?? null)
+  const authBusy = busy || googleBusy
+
+  useEffect(() => {
+    const oauthError = readOAuthErrorFromUrl()
+    if (oauthError) {
+      setError(oauthError)
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (busy) return
+    if (authBusy) return
     if (!email.trim() || !password) {
       setError('กรุณากรอกอีเมลและรหัสผ่านให้ครบ')
       return
@@ -24,6 +90,19 @@ export function LoginPage() {
     } catch (signInError) {
       setError(toThaiError(signInError))
       setBusy(false)
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    if (authBusy) return
+    setGoogleBusy(true)
+    setError(null)
+    try {
+      await signInWithGoogle()
+    } catch (signInError) {
+      setError(toThaiError(signInError))
+    } finally {
+      setGoogleBusy(false)
     }
   }
 
@@ -88,6 +167,27 @@ export function LoginPage() {
             </div>
           </div>
 
+          {error && (
+            <div className="login-error" role="alert">
+              <Icon name="alert" size={18} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="google-login-button"
+            onClick={() => void handleGoogleSignIn()}
+            disabled={authBusy}
+          >
+            {googleBusy ? <span className="spinner spinner-small" aria-hidden="true" /> : <GoogleIcon />}
+            <span>{googleBusy ? 'กำลังพาไปที่ Google…' : 'ดำเนินการต่อด้วย Google'}</span>
+          </button>
+
+          <div className="login-divider">
+            <span>หรือเข้าสู่ระบบด้วยอีเมล</span>
+          </div>
+
           <form onSubmit={handleSubmit} noValidate>
             <div className="field">
               <label className="field-label" htmlFor="login-email">
@@ -101,7 +201,7 @@ export function LoginPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
-                disabled={busy}
+                disabled={authBusy}
                 inputMode="email"
               />
             </div>
@@ -119,28 +219,27 @@ export function LoginPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  disabled={busy}
+                  disabled={authBusy}
                 />
                 <button
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowPassword((visible) => !visible)}
                   aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                  disabled={busy}
+                  disabled={authBusy}
                 >
                   <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} />
                 </button>
               </div>
             </div>
 
-            {error && (
-              <div className="login-error" role="alert">
-                <Icon name="alert" size={18} />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <Button type="submit" size="lg" className="login-submit" loading={busy}>
+            <Button
+              type="submit"
+              size="lg"
+              className="login-submit"
+              loading={busy}
+              disabled={googleBusy}
+            >
               {busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
             </Button>
           </form>
@@ -148,8 +247,9 @@ export function LoginPage() {
           <div className="login-hint">
             <Icon name="book" size={17} />
             <p>
-              บัญชีเจ้าของสร้างไว้ใน Supabase Dashboard แล้ว
+              ใช้บัญชีเจ้าของที่สร้างไว้ใน Supabase Dashboard
               แอปนี้ไม่มีหน้าสมัครสมาชิกและไม่เปิดให้ลงทะเบียนเอง
+              Google จะเข้าสู่ระบบได้เฉพาะบัญชีที่มีสิทธิ์อยู่แล้ว
             </p>
           </div>
 
