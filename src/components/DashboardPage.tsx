@@ -325,7 +325,7 @@ export function DashboardPage({
         <div className="calendar-scroll">
           <div className="calendar-weekdays" aria-hidden="true">
             {CALENDAR_WEEKDAY_HEADERS.map((label, index) => (
-              <span key={label} className={index >= 5 ? 'is-weekend' : ''}>
+              <span key={label} className={index === 0 || index === 6 ? 'is-weekend' : ''}>
                 {label}
               </span>
             ))}

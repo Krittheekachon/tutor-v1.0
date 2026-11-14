@@ -21,7 +21,8 @@ export const WEEKDAY_SHORT: Record<number, string> = {
   7: 'อา.',
 }
 
-export const CALENDAR_WEEKDAY_HEADERS = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.']
+// ปฏิทินเริ่มสัปดาห์วันอาทิตย์ (อา. → ส.)
+export const CALENDAR_WEEKDAY_HEADERS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
 
 const dateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: BANGKOK_TIME_ZONE,
@@ -136,7 +137,9 @@ export function yearMonthKey(year: number, monthIndex: number): string {
 
 export function calendarGridDays(year: number, monthIndex: number): string[] {
   const firstKey = yearMonthKey(year, monthIndex)
-  const leading = weekdayFromDateKey(firstKey) - 1
+  // weekdayFromDateKey: 1 = จันทร์ … 7 = อาทิตย์
+  // ถ้าเริ่มสัปดาห์ด้วยอาทิตย์ วันที่ 1 ของเดือนต้องมี leading = 0 เมื่อเป็นวันอาทิตย์
+  const leading = weekdayFromDateKey(firstKey) % 7
   const start = addDaysKey(firstKey, -leading)
   return Array.from({ length: 42 }, (_, index) => addDaysKey(start, index))
 }

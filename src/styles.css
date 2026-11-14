@@ -369,7 +369,8 @@
   align-items: center;
   gap: 6px;
   color: #b49ca6;
-  font-size: 10px;
+  font-size: var(--text-footer);
+  line-height: var(--leading-secondary);
   white-space: nowrap;
 }
 
@@ -630,7 +631,8 @@
   padding: 19px 26px 28px;
   border-top: 1px dashed #eed7e1;
   color: #b196a2;
-  font-size: 10.5px;
+  font-size: var(--text-footer);
+  line-height: var(--leading-secondary);
 }
 
 .app-footer span {
@@ -678,6 +680,7 @@
   border: 1px dashed rgba(213, 104, 145, 0.2);
   border-radius: 50%;
   pointer-events: none;
+  z-index: 0;
 }
 
 .hero-copy {
@@ -762,6 +765,7 @@
   opacity: 0.2;
   transform: rotate(10deg);
   pointer-events: none;
+  z-index: 0;
 }
 
 .onboarding-strip {
@@ -1272,12 +1276,13 @@
 }
 
 .session-subject {
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: #f8edf2;
   color: #8f6475;
-  font-size: 10px;
+  font-size: var(--text-tag);
   font-weight: 500;
+  line-height: var(--leading-secondary);
 }
 
 .session-title-tools {
@@ -1292,13 +1297,14 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 4px 9px;
   border: 1px solid #ecdde3;
   border-radius: 999px;
   background: #fffafb;
   color: #9b7a87;
-  font-size: 9px;
+  font-size: var(--text-tag);
   font-weight: 600;
+  line-height: var(--leading-secondary);
   white-space: nowrap;
   transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
 }
@@ -1383,16 +1389,17 @@
 .session-note-label {
   display: block;
   color: #a07c59;
-  font-size: 8.5px;
+  font-size: var(--text-secondary);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  line-height: var(--leading-secondary);
+  letter-spacing: 0.02em;
 }
 
 .session-note-box p {
-  margin-top: 1px;
+  margin-top: 2px;
   color: #70543d;
-  font-size: 10.5px;
-  line-height: 1.55;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1484,10 +1491,11 @@
 .taught-numbers {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px 14px;
-  margin-bottom: 6px;
+  gap: 4px 14px;
+  margin-bottom: 7px;
   color: #567463;
-  font-size: 10px;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 .taught-numbers strong {
@@ -2293,13 +2301,14 @@
 }
 
 .students-table th {
-  padding: 12px 12px;
+  padding: 13px 12px;
   border-bottom: 1px solid #f1dee6;
   background: #fff8fa;
   color: #9f7f8c;
-  font-size: 9.5px;
+  font-size: var(--text-table-head);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  line-height: var(--leading-secondary);
+  letter-spacing: 0.04em;
   text-align: left;
   text-transform: uppercase;
 }
@@ -2473,11 +2482,17 @@
   white-space: nowrap;
 }
 
+.end-date-cell .badge {
+  max-width: 100%;
+  white-space: normal;
+  line-height: var(--leading-secondary);
+}
+
 .end-date-cell .end-shortfall {
   color: #a6784e;
-  font-size: 8.5px;
+  font-size: var(--text-secondary);
   white-space: normal;
-  line-height: 1.35;
+  line-height: var(--leading-secondary);
 }
 
 .row-open-button {
@@ -2969,9 +2984,11 @@
 .info-label {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   color: #977684;
-  font-size: 8.5px;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 .course-info-card strong {
@@ -2983,8 +3000,8 @@
 
 .course-info-card small {
   color: #a98b97;
-  font-size: 8px;
-  line-height: 1.45;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 .info-end {
@@ -3377,7 +3394,11 @@
     left: auto;
     transform: none;
     justify-content: center;
+    flex-wrap: wrap;
+    max-width: calc(100vw - 28px);
     margin-top: 14px;
+    white-space: normal;
+    text-align: center;
   }
 
   .dashboard-hero {
@@ -3765,7 +3786,8 @@
   }
 
   .session-subject {
-    font-size: 9px;
+    font-size: var(--text-tag);
+    line-height: var(--leading-secondary);
   }
 
   .session-badges {
@@ -3794,8 +3816,9 @@
   }
 
   .taught-numbers {
-    gap: 2px 9px;
-    font-size: 9px;
+    gap: 3px 10px;
+    font-size: var(--text-secondary);
+    line-height: var(--leading-secondary);
   }
 
   .attachment-name {
@@ -3829,7 +3852,8 @@
   }
 
   .modal-heading p {
-    font-size: 10.5px;
+    font-size: var(--text-secondary);
+    line-height: var(--leading-secondary);
   }
 
   .modal-body {
@@ -4077,7 +4101,8 @@
   }
 
   .login-footer {
-    font-size: 9px;
+    font-size: var(--text-footer);
+    line-height: var(--leading-secondary);
   }
 
   .empty-state {

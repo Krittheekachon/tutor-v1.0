@@ -38,6 +38,13 @@
   --radius-xl: 30px;
   --font-body: 'Noto Sans Thai', 'Tahoma', sans-serif;
   --font-display: 'Mali', 'Noto Sans Thai', 'Tahoma', sans-serif;
+
+  /* ขนาดตัวอักษรรองที่ปรับเพิ่มเพื่อการอ่านบนมือถือ/เดสก์ท็อป */
+  --text-secondary: 13px;
+  --text-tag: 13px;
+  --text-table-head: 13px;
+  --text-footer: 13px;
+  --leading-secondary: 1.55;
 }
 
 *,
@@ -628,15 +635,16 @@ svg {
 .field-hint {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 11.5px;
-  line-height: 1.5;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 .field-error {
   margin-top: 5px;
   color: var(--red);
-  font-size: 11.5px;
+  font-size: var(--text-secondary);
   font-weight: 500;
+  line-height: var(--leading-secondary);
 }
 
 .input {
@@ -751,8 +759,8 @@ svg {
   border-radius: 12px;
   background: #fff3f5;
   color: #9e4058;
-  font-size: 12.5px;
-  line-height: 1.55;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 .form-error svg {
@@ -763,7 +771,8 @@ svg {
 .retry-note {
   margin-top: 7px;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
   text-align: center;
 }
 
@@ -773,7 +782,8 @@ svg {
   border-radius: 12px;
   background: #fff4f8;
   color: #826270;
-  font-size: 12.5px;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 .inline-note {
@@ -785,8 +795,8 @@ svg {
   border-radius: 11px;
   background: #f4fafd;
   color: #5f7d8c;
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 .inline-note svg {
@@ -878,7 +888,8 @@ svg {
 
 .form-section-title p {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 /* ---------- Badges / progress ---------- */
@@ -886,11 +897,11 @@ svg {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: var(--text-tag);
   font-weight: 600;
-  line-height: 1.5;
+  line-height: var(--leading-secondary);
   white-space: nowrap;
 }
 
@@ -1034,7 +1045,8 @@ svg {
 .subheading-note {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 /* ---------- Shortcuts ---------- */
@@ -1184,6 +1196,10 @@ svg {
 }
 
 .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1221,20 +1237,22 @@ svg {
 }
 
 .modal-heading p {
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--muted);
-  font-size: 11.5px;
-  line-height: 1.5;
+  font-size: var(--text-secondary);
+  line-height: var(--leading-secondary);
 }
 
 .modal-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 22px 24px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
 .modal-footer {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;

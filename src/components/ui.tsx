@@ -571,11 +571,18 @@ export function Modal({
     }
     document.addEventListener('keydown', onKeyDown)
     document.body.style.overflow = 'hidden'
+
+    const body = panelRef.current?.querySelector<HTMLElement>('.modal-body')
+    if (body) body.scrollTop = 0
+
     const timer = window.setTimeout(() => {
       const firstInput = panelRef.current?.querySelector<HTMLElement>(
-        '.modal-body input, .modal-body select, .modal-body textarea',
+        '.modal-body input:not(.sr-only), .modal-body select:not(.sr-only), .modal-body textarea:not(.sr-only)',
       )
-      ;(firstInput ?? panelRef.current?.querySelector<HTMLElement>('.modal-header button'))?.focus()
+      ;(firstInput ?? panelRef.current?.querySelector<HTMLElement>('.modal-header button'))?.focus({
+        preventScroll: true,
+      })
+      if (body) body.scrollTop = 0
     }, 50)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
