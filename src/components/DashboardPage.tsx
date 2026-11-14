@@ -1,3 +1,4 @@
+import { attachmentSessionId } from '../lib/attachments'
 import { useMemo, useState } from 'react'
 import { cancelSession, restoreSession } from '../lib/api'
 import { calculateCourseStats } from '../lib/calc'
@@ -38,6 +39,7 @@ import { LessonModal } from './LessonModal'
 import { MoveSessionModal } from './MoveSessionModal'
 import { SessionNoteModal } from './SessionNoteModal'
 import { AttachmentButton } from './AttachmentButton'
+import { LessonSummaryModal } from './LessonSummaryModal'
 
 interface SessionView {
   session: Session
@@ -68,6 +70,7 @@ export function DashboardPage({
   const [lessonSessionId, setLessonSessionId] = useState<string | null>(null)
   const [moveSessionId, setMoveSessionId] = useState<string | null>(null)
   const [noteSessionId, setNoteSessionId] = useState<string | null>(null)
+  const [summarySessionId, setSummarySessionId] = useState<string | null>(null)
   const [cancelSessionTarget, setCancelSessionTarget] = useState<Session | null>(null)
   const [canceling, setCanceling] = useState(false)
 
@@ -158,7 +161,7 @@ export function DashboardPage({
           course,
           student,
           log: logBySession.get(session.id) ?? null,
-          attachments: attachmentsByCourse.get(course.id) ?? [],
+          attachments: (attachmentsByCourse.get(course.id) ?? []).filter(file => !attachmentSessionId(file) || attachmentSessionId(file) === session.id),
           actualMinutes: stats?.actualMinutes ?? 0,
           purchasedMinutes: course.purchased_minutes,
           remainingMinutes: stats?.remainingMinutes ?? course.purchased_minutes,
@@ -357,6 +360,7 @@ export function DashboardPage({
                     .join(' ')}
                   onClick={() => selectDate(date)}
                   onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault()
                       selectDate(date)
@@ -373,21 +377,26 @@ export function DashboardPage({
                       const student = course ? studentById.get(course.student_id) : null
                       if (!course || !student) return null
                       const isCanceled = session.status === 'canceled'
-                      const hasNote = session.note.trim().length > 0
+                      const isTaught = logBySession.has(session.id)
+                      const statusLabel = isTaught ? 'สอนแล้ว' : isCanceled ? 'ยกเลิก' : 'ยังไม่ได้สอน'
+                      const hasNote = session.note.trim().length > 0 || (data?.attachments ?? []).some(file => attachmentSessionId(file) === session.id)
                       return (
                         <button
                           key={session.id}
                           type="button"
-                          className={`calendar-event ${isCanceled ? 'is-canceled' : ''} ${hasNote ? 'has-note' : ''}`}
+                          className={`calendar-event ${isTaught ? 'is-taught' : isCanceled ? 'is-canceled' : ''} ${hasNote ? 'has-note' : ''}`}
                           style={{
                             backgroundColor: isCanceled ? '#f2ebee' : hexToRgba(student.color_hex, 0.46),
                             borderLeftColor: isCanceled ? '#c9b8c0' : student.color_hex,
                           }}
                           onClick={(event) => {
                             event.stopPropagation()
-                            selectDate(date)
+                            setSelectedDate(date)
+                            if (isTaught) setSummarySessionId(session.id)
+                            else setNoteSessionId(session.id)
                           }}
-                          title={`${formatTimeRange(session.start_time, session.end_time)} ${student.nickname}${isCanceled ? ' (ยกเลิก)' : ''}`}
+                          title={`${formatTimeRange(session.start_time, session.end_time)} ${student.nickname} • ${statusLabel} • ${isTaught ? 'ดูสรุปการสอน' : hasNote ? 'ดูโน้ต' : 'เพิ่มโน้ต'}`}
+                          aria-label={`${student.nickname} ${formatTimeRange(session.start_time, session.end_time)} ${statusLabel} ${isTaught ? 'ดูสรุปการสอน' : hasNote ? 'ดูโน้ตของนัดนี้' : 'เพิ่มโน้ตของนัดนี้'}`}
                         >
                           <span className="calendar-event-time">{session.start_time.slice(0, 5)}</span>
                           <span className="calendar-event-name">{student.nickname}</span>
@@ -412,6 +421,7 @@ export function DashboardPage({
           </span>
           <span className="calendar-legend">
             <i className="legend-dot legend-confirmed" /> นัดปกติ
+            <i className="legend-dot legend-taught" /> สอนแล้ว
             <i className="legend-dot legend-canceled" /> ยกเลิก
             <span className="legend-note">✎</span> มีโน้ต
           </span>
@@ -472,6 +482,7 @@ export function DashboardPage({
                 onCancel={() => setCancelSessionTarget(viewItem.session)}
                 onRestore={() => void handleRestore(viewItem.session)}
                 onNote={() => setNoteSessionId(viewItem.session.id)}
+                onSummary={() => setSummarySessionId(viewItem.session.id)}
               />
             ))}
           </div>
@@ -492,6 +503,7 @@ export function DashboardPage({
           student={lessonView.student}
           log={lessonView.log}
           onClose={() => setLessonSessionId(null)}
+          onSummary={() => setSummarySessionId(lessonView.session.id)}
         />
       )}
 
@@ -504,6 +516,8 @@ export function DashboardPage({
           onClose={() => setMoveSessionId(null)}
         />
       )}
+
+      <LessonSummaryModal sessionId={summarySessionId} onClose={() => setSummarySessionId(null)} />
 
       {noteView && (
         <SessionNoteModal
@@ -545,6 +559,7 @@ function SessionCard({
   onCancel,
   onRestore,
   onNote,
+  onSummary,
 }: {
   viewItem: SessionView
   now: Date
@@ -553,6 +568,7 @@ function SessionCard({
   onCancel: () => void
   onRestore: () => void
   onNote: () => void
+  onSummary: () => void
 }) {
   const { session, course, student, log, attachments, actualMinutes, purchasedMinutes, remainingMinutes, progressPct } =
     viewItem
@@ -560,7 +576,7 @@ function SessionCard({
   const isMoved = session.status === 'moved'
   const isExtra = session.kind === 'extra'
   const isTaught = Boolean(log)
-  const hasNote = session.note.trim().length > 0
+  const hasNote = session.note.trim().length > 0 || attachments.some(file => attachmentSessionId(file) === session.id)
   const plannedMinutes = sessionDurationMinutes(session.start_time, session.end_time)
   const isPast = sessionEndInstant(session.session_date, session.end_time).getTime() <= now.getTime()
   const originalChanged =
@@ -589,7 +605,8 @@ function SessionCard({
         <div className="session-title-row">
           <div className="session-name-wrap">
             <span className="student-color-dot" style={{ backgroundColor: student.color_hex }} />
-            <h3>{student.nickname}</h3>
+            <h3>{isTaught ? <button type="button" className="session-summary-name"
+              onClick={onSummary} title="ดูสรุปการสอน">{student.nickname}</button> : student.nickname}</h3>
             <span className="session-subject">{course.subject}</span>
           </div>
           <div className="session-title-tools">
@@ -698,9 +715,14 @@ function SessionCard({
 
       <div className="session-actions">
         {isTaught ? (
+          <>
+          <Button variant="soft" size="sm" icon="document" onClick={onSummary}>
+            สรุปการสอน
+          </Button>
           <Button variant="soft" size="sm" icon="edit" onClick={onRecord}>
             แก้ไขบันทึก
           </Button>
+          </>
         ) : isCanceled ? (
           <Button variant="soft" size="sm" icon="restore" onClick={onRestore}>
             คืนสถานะนัด

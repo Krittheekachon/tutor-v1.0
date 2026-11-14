@@ -22,6 +22,7 @@ export function LessonModal({
   student,
   log,
   onClose,
+  onSummary,
 }: {
   open: boolean
   session: Session
@@ -29,6 +30,7 @@ export function LessonModal({
   student: Student
   log: LessonLog | null
   onClose: () => void
+  onSummary: () => void
 }) {
   const { data, refresh } = useAppData()
   const { pushToast } = useToast()
@@ -113,6 +115,7 @@ export function LessonModal({
         refreshed ? 'success' : 'warning',
       )
       onClose()
+      if (refreshed) onSummary()
     } catch (saveError) {
       setError(toThaiError(saveError))
     } finally {
@@ -184,6 +187,10 @@ export function LessonModal({
             </div>
             <span className="lesson-course">{course.subject}</span>
           </div>
+
+          {log && <Button variant="soft" size="sm" icon="document" onClick={onSummary} disabled={busy}>
+            ดูสรุปการสอน / บันทึกภาพ
+          </Button>}
 
           <p className="form-lead">
             กรอกชั่วโมงและนาทีที่สอนจริง ระบบจะใช้ค่านี้แทนบันทึกเดิมของนัดนี้

@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react'
-import { calculateStudentStats } from '../lib/calc'
+import { studentListRows, type StudentSort } from '../lib/studentList'
 import {
   formatDuration,
   formatPercent,
-  formatScheduleList,
-  formatThaiDate,
+  WEEKDAY_LONG,
 } from '../lib/date'
 import { useAppData } from '../state/AppDataContext'
-import type { ScheduleRule, Student } from '../lib/types'
 import { StudentDetailModal } from './StudentDetailModal'
 import { StudentFormModal } from './StudentFormModal'
 import { CourseFormModal } from './CourseFormModal'
@@ -23,21 +21,15 @@ import {
   useMediaQuery,
 } from './ui'
 
-interface StudentRow {
-  student: Student
-  subjects: string[]
-  schedule: string
-  rules: ScheduleRule[]
-  stats: ReturnType<typeof calculateStudentStats>
-  endDate: string | null
-  endLabel: string
-  courseCount: number
-}
+type StudentRow = ReturnType<typeof studentListRows>[number]
 
 export function StudentsPage() {
   const { data } = useAppData()
   const isMobile = useMediaQuery('(max-width: 860px)')
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<StudentSort>('name')
+  const [weekday, setWeekday] = useState('')
+  const [subject, setSubject] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [addStudentOpen, setAddStudentOpen] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
@@ -45,42 +37,17 @@ export function StudentsPage() {
   const [editStudentId, setEditStudentId] = useState<string | null>(null)
   const [addCourseForStudentId, setAddCourseForStudentId] = useState<string | null>(null)
 
-  const rows = useMemo<StudentRow[]>(() => {
+  const rows = useMemo(() => data ? studentListRows(data, {
+    archived: showArchived, search, weekday, subject, sort,
+  }) : [], [data, showArchived, search, weekday, subject, sort])
+  const subjects = useMemo(() => {
     if (!data) return []
-    return data.students
-      .filter((student) => Boolean(student.archived_at) === showArchived)
-      .map((student) => {
-        const allCourses = data.courses.filter((course) => course.student_id === student.id)
-        const relevantCourses = student.archived_at
-          ? allCourses
-          : allCourses.filter((course) => !course.archived_at)
-        const courseIds = new Set(relevantCourses.map((course) => course.id))
-        const rules = data.rules.filter((rule) => courseIds.has(rule.course_id) && rule.active)
-        const stats = calculateStudentStats(
-          relevantCourses,
-          data.logs,
-          data.sessions,
-          data.payments,
-        )
-        const subjects = [...new Set(relevantCourses.map((course) => course.subject))]
-        const endDate = stats.completionDate ?? stats.estimatedEndDate
-        return {
-          student,
-          subjects,
-          schedule: formatScheduleList(rules),
-          rules,
-          stats,
-          endDate,
-          endLabel: endDate ? formatThaiDate(endDate) : 'ยังประเมินไม่ได้',
-          courseCount: relevantCourses.length,
-        }
-      })
-      .filter((row) => {
-        const query = search.trim().toLowerCase()
-        return query.length === 0 || row.student.nickname.toLowerCase().includes(query)
-      })
-      .sort((a, b) => a.student.nickname.localeCompare(b.student.nickname, 'th'))
-  }, [data, showArchived, search])
+    const studentIds = new Set(data.students.filter(student => Boolean(student.archived_at) === showArchived).map(student => student.id))
+    return [...new Set(data.courses.filter(course => studentIds.has(course.student_id) && (showArchived || !course.archived_at))
+      .map(course => course.subject))].sort((a, b) => a.localeCompare(b, 'th'))
+  }, [data, showArchived])
+  const hasFilters = Boolean(search.trim() || weekday || subject)
+  function clearFilters() { setSearch(''); setWeekday(''); setSubject('') }
 
   if (!data) return null
 
@@ -149,7 +116,7 @@ export function StudentsPage() {
             role="tab"
             aria-selected={!showArchived}
             className={!showArchived ? 'is-active' : ''}
-            onClick={() => setShowArchived(false)}
+            onClick={() => { setShowArchived(false); setSubject('') }}
           >
             กำลังเรียน
             <span className="segment-count">{activeCount}</span>
@@ -159,7 +126,7 @@ export function StudentsPage() {
             role="tab"
             aria-selected={showArchived}
             className={showArchived ? 'is-active' : ''}
-            onClick={() => setShowArchived(true)}
+            onClick={() => { setShowArchived(true); setSubject('') }}
           >
             คลัง
             <span className="segment-count">{archivedCount}</span>
@@ -189,27 +156,75 @@ export function StudentsPage() {
         </div>
       </div>
 
+      <div className="students-list-controls">
+        <div className="students-control students-sort-control">
+          <label htmlFor="students-sort">เรียงตาม</label>
+          <div className="students-sort-row">
+            <span className="students-select-wrap">
+              <select id="students-sort" className="input input-select" value={sort === 'name' ? 'name' : sort.startsWith('remaining-') ? 'remaining' : 'end'}
+                onChange={event => setSort(event.target.value === 'remaining' ? 'remaining-desc' : event.target.value === 'end' ? 'end-asc' : 'name')}>
+                <option value="name">ชื่อ</option>
+                <option value="remaining">ชั่วโมงคงเหลือ</option>
+                <option value="end">วันที่จบ</option>
+              </select>
+            </span>
+            <button type="button" className="students-sort-direction" disabled={sort === 'name'}
+              aria-label="สลับทิศทางการเรียง"
+              title={sort === 'name' ? 'การเรียงชื่อยังไม่รองรับการสลับทิศทาง' : 'สลับทิศทางการเรียง'}
+              onClick={() => setSort(current => current === 'remaining-desc' ? 'remaining-asc' : current === 'remaining-asc' ? 'remaining-desc' : current === 'end-asc' ? 'end-desc' : current === 'end-desc' ? 'end-asc' : current)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d={sort.endsWith('-asc') ? 'M12 19V5m-5 5 5-5 5 5' : 'M12 5v14m-5-5 5 5 5-5'} />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className={`students-control ${weekday ? 'is-filtered' : ''}`}>
+          <label htmlFor="students-weekday">วันเรียนประจำ</label>
+          <span className="students-select-wrap">
+            <select id="students-weekday" className="input input-select" value={weekday} onChange={event => setWeekday(event.target.value)}>
+              <option value="">ทุกวัน</option>
+              {[1, 2, 3, 4, 5, 6, 7].map(day => <option key={day} value={day}>วัน{WEEKDAY_LONG[day]}</option>)}
+            </select>
+          </span>
+        </div>
+        <div className={`students-control ${subject ? 'is-filtered' : ''}`}>
+          <label htmlFor="students-subject">วิชา</label>
+          <span className="students-select-wrap">
+            <select id="students-subject" className="input input-select" value={subject} onChange={event => setSubject(event.target.value)}>
+              <option value="">ทุกวิชา</option>
+              {subjects.map(item => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </span>
+        </div>
+        {(weekday || subject) && <button type="button" className="students-clear-filters"
+          aria-label="ล้างตัวกรองวันเรียนและวิชา" onClick={() => { setWeekday(''); setSubject('') }}>ล้างตัวกรอง</button>}
+        <p className="students-filter-status" role="status"
+          title={weekday || subject ? 'ชั่วโมงและวันจบคำนวณจากคอร์สที่ตรงตัวกรอง' : undefined}>
+          แสดง {rows.length}{hasFilters ? ` จาก ${showArchived ? archivedCount : activeCount}` : ''} คน
+        </p>
+      </div>
+
       {rows.length === 0 ? (
         <div className="students-empty-card">
           <EmptyState
             title={
-              search
-                ? 'ไม่พบนักเรียนที่ค้นหา'
+              hasFilters
+                ? 'ไม่พบนักเรียนที่ตรงตัวกรอง'
                 : showArchived
                   ? 'คลังยังว่างอยู่'
                   : 'ยังไม่มีนักเรียนในตารางสอน'
             }
             description={
-              search
-                ? 'ลองพิมพ์ชื่อเล่นให้สั้นลง หรือล้างคำค้นหาแล้วดูรายชื่อทั้งหมด'
+              hasFilters
+                ? 'ลองเปลี่ยนคำค้นหา วันเรียน หรือวิชา หรือล้างตัวกรองเพื่อดูรายชื่อทั้งหมด'
                 : showArchived
                   ? 'นักเรียนที่เก็บเข้าคลังจะมาอยู่ที่นี่ พร้อมประวัติที่เปิดดูได้'
                   : 'เพิ่มนักเรียนคนแรก แล้วคอร์สและตารางประจำจะเริ่มต้นที่นี่'
             }
             action={
-              search ? (
-                <Button variant="soft" icon="x" onClick={() => setSearch('')}>
-                  ล้างคำค้นหา
+              hasFilters ? (
+                <Button variant="soft" icon="x" onClick={clearFilters}>
+                  ล้างตัวกรอง
                 </Button>
               ) : showArchived ? (
                 <Button variant="soft" icon="arrow-left" onClick={() => setShowArchived(false)}>

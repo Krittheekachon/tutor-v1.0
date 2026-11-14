@@ -6,7 +6,7 @@ import { validateSlots } from '../lib/schedule'
 import { useAppData } from '../state/AppDataContext'
 import type { ScheduleSlotInput, Student } from '../lib/types'
 import { ColorPicker } from './ColorPicker'
-import { FilePickerField } from './FilePickerField'
+import { ContentAttachments } from './ContentAttachments'
 import { makeEmptySlot, ScheduleSlotsEditor } from './ScheduleSlotsEditor'
 import { Button, Field, Icon, Modal, useToast } from './ui'
 
@@ -33,10 +33,9 @@ export function StudentFormModal({
   const [hours, setHours] = useState('8')
   const [price, setPrice] = useState('4000')
   const [slots, setSlots] = useState<ScheduleSlotInput[]>([])
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [fileError, setFileError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -48,10 +47,9 @@ export function StudentFormModal({
     setHours('8')
     setPrice('4000')
     setSlots(mode === 'add' ? [makeEmptySlot(weekdayFromDateKey(todayKey()))] : [])
-    setFile(null)
+    setFiles([])
     setBusy(false)
     setError(null)
-    setFileError(null)
   }, [open, mode, student])
 
   function validate(): string | null {
@@ -68,7 +66,6 @@ export function StudentFormModal({
       const slotError = validateSlots(slots)
       if (slotError) return slotError
     }
-    if (fileError) return fileError
     return null
   }
 
@@ -103,7 +100,7 @@ export function StudentFormModal({
           purchasedMinutes: Math.round(Number(hours) * 60),
           priceBaht: Number(price),
           slots,
-          file,
+          files,
         })
         const refreshed = await refresh()
         pushToast(
@@ -215,6 +212,7 @@ export function StudentFormModal({
                 htmlFor="student-content"
                 hint="ใช้แสดงเป็นเนื้อหาที่วางไว้ในรายละเอียดนัด"
               >
+                <ContentAttachments files={files} onChange={setFiles} disabled={busy}>
                 <textarea
                   id="student-content"
                   className="input textarea"
@@ -225,6 +223,7 @@ export function StudentFormModal({
                   maxLength={5000}
                   disabled={busy}
                 />
+                </ContentAttachments>
               </Field>
 
               <div className="form-row form-row-2">
@@ -265,15 +264,7 @@ export function StudentFormModal({
                 </Field>
               </div>
 
-              <Field label="ไฟล์แนบการสอน (ไม่บังคับ)">
-                <FilePickerField
-                  file={file}
-                  onChange={setFile}
-                  onError={setFileError}
-                  disabled={busy}
-                />
-                {fileError && <p className="field-error">{fileError}</p>}
-              </Field>
+
             </div>
 
             <div className="form-section">

@@ -282,7 +282,7 @@ function AuthenticatedApp({ email, displayName }: { email: string; displayName: 
 
       <footer className="app-footer">
         <span>
-          <Bow size={18} /> ตารางสอนของฉัน
+          <Bow size={18} /> MyCourses
         </span>
         <span>เวลาไทย (Asia/Bangkok) • ข้อมูลของคุณเห็นได้เฉพาะบัญชีนี้</span>
       </footer>

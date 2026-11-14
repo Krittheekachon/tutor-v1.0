@@ -478,7 +478,7 @@ export function CourseDetailModal({
             <div>
               <h3 className="subheading">ไฟล์แนบการสอน</h3>
               <p className="subheading-note">
-                ไฟล์อยู่ใน private bucket และเปิดด้วย signed URL อายุ 60 วินาที
+                กดเพื่อดูตัวอย่างไฟล์
               </p>
             </div>
           </div>

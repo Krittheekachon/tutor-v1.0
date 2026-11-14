@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { updateSessionNote } from '../lib/api'
+import { deleteAttachment, uploadAttachment, updateSessionNote } from '../lib/api'
 import { formatThaiDate, formatTimeRange } from '../lib/date'
 import { toThaiError } from '../lib/errors'
 import { useAppData } from '../state/AppDataContext'
-import type { Course, Session, Student } from '../lib/types'
+import { attachmentSessionId } from '../lib/attachments'
+import { ContentAttachments } from './ContentAttachments'
+import { AttachmentButton } from './AttachmentButton'
+import type { Attachment, Course, Session, Student } from '../lib/types'
 import {
   Badge,
   Button,
@@ -27,9 +30,15 @@ export function SessionNoteModal({
   student: Student
   onClose: () => void
 }) {
-  const { refresh } = useAppData()
+  const { data, refresh } = useAppData()
   const { pushToast } = useToast()
   const [note, setNote] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [uploaded, setUploaded] = useState<Attachment[]>([])
+  const [removed, setRemoved] = useState<string[]>([])
+  const existing = [...(data?.attachments ?? []), ...uploaded]
+    .filter((file, index, all) => attachmentSessionId(file) === session.id && all.findIndex(item => item.id === file.id) === index)
+  const visible = existing.filter(file => !removed.includes(file.id))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
@@ -37,22 +46,36 @@ export function SessionNoteModal({
   useEffect(() => {
     if (!open) return
     setNote(session.note)
+    setFiles([])
+    setUploaded([])
+    setRemoved([])
     setBusy(false)
     setError(null)
     setConfirmClear(false)
   }, [open, session])
 
-  const hasExistingNote = session.note.trim().length > 0
+  const hasExistingNote = session.note.trim().length > 0 || existing.length > 0
 
-  async function saveNote(nextNote: string) {
+  async function saveNote(nextNote: string, clear = false) {
     setBusy(true)
     setError(null)
     try {
+      if (!clear) {
+        for (const file of files) {
+          const attachment = await uploadAttachment(course.owner_id, course.id, file, session.id)
+          setUploaded(current => [...current, attachment])
+          setFiles(current => current.filter(item => item !== file))
+        }
+      }
+      for (const attachment of existing.filter(file => clear || removed.includes(file.id))) {
+        await deleteAttachment(attachment)
+        setUploaded(current => current.filter(item => item.id !== attachment.id))
+      }
       await updateSessionNote(session.id, nextNote)
       const refreshed = await refresh()
       pushToast(
         refreshed
-          ? nextNote.trim()
+          ? (nextNote.trim() || (!clear && (files.length > 0 || visible.length > 0)))
             ? 'บันทึกโน้ตของนัดนี้แล้ว'
             : 'ลบโน้ตของนัดนี้แล้ว'
           : 'บันทึกแล้ว แต่รีเฟรชข้อมูลไม่สำเร็จ',
@@ -117,8 +140,9 @@ export function SessionNoteModal({
           <Field
             label="โน้ตของนัดนี้"
             htmlFor="session-note"
-            hint="เว้นว่างแล้วกดบันทึกเพื่อลบโน้ต • สูงสุด 5,000 ตัวอักษร"
+            hint="แนบไฟล์หรือวางรูปได้แม้ไม่มีข้อความ • สูงสุด 5,000 ตัวอักษร"
           >
+            <ContentAttachments files={files} onChange={setFiles} disabled={busy}>
             <textarea
               id="session-note"
               className="input textarea note-textarea"
@@ -129,6 +153,17 @@ export function SessionNoteModal({
               maxLength={5000}
               disabled={busy}
             />
+            </ContentAttachments>
+            {visible.length > 0 && <div className="attachment-manage-list">
+              {visible.map(attachment => <div className="attachment-manage-row" key={attachment.id}>
+                <AttachmentButton attachment={attachment} compact={false} />
+                <button type="button" className="file-remove" disabled={busy}
+                  aria-label={`เอาไฟล์ ${attachment.file_name} ออก`}
+                  onClick={() => setRemoved(current => [...current, attachment.id])}>
+                  <Icon name="x" size={15} />
+                </button>
+              </div>)}
+            </div>}
           </Field>
 
           <div className="inline-note">
@@ -150,11 +185,11 @@ export function SessionNoteModal({
       <ConfirmDialog
         open={confirmClear}
         title="ลบโน้ตของนัดนี้?"
-        description="ข้อความโน้ตจะถูกลบออกจากนัดนี้ แต่ข้อมูลการสอนและชั่วโมงยังอยู่ครบ"
+        description="ข้อความและไฟล์แนบของโน้ตจะถูกลบออกจากนัดนี้ แต่ข้อมูลการสอนและชั่วโมงยังอยู่ครบ"
         confirmLabel="ลบโน้ต"
         tone="danger"
         busy={busy}
-        onConfirm={() => void saveNote('')}
+        onConfirm={() => void saveNote('', true)}
         onClose={() => {
           if (!busy) setConfirmClear(false)
         }}

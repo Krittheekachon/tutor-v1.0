@@ -1026,6 +1026,15 @@
   opacity: 0.72;
 }
 
+.calendar-event.is-taught {
+  opacity: 0.45;
+}
+
+.legend-taught {
+  background: var(--pink);
+  opacity: 0.45;
+}
+
 .calendar-event-time {
   flex: none;
   font-size: 9px;
@@ -4246,3 +4255,44 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+.content-attachments > .file-select-button { margin-top: 10px; }
+.content-attachment-list { display: grid; gap: 12px; margin-top: 12px; }
+.content-attachment-item { min-width: 0; padding: 12px; border: 1px solid #f3d5e0; border-radius: 12px; }
+.content-attachment-preview { display: block; max-width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; margin-bottom: 10px; }
+.content-attachment-item .file-selected { max-width: 100%; }
+
+.attachment-preview { display: flex; justify-content: center; align-items: center; min-height: 160px; }
+.attachment-preview img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 12px; }
+
+.lesson-report-image { display: block; width: 100%; height: auto; border-radius: 16px; }
+.lesson-report-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; width: 100%; }
+.lesson-report-copy-status { flex-basis: 100%; min-height: 1.5em; color: var(--muted); font-size: 12px; text-align: right; }
+.students-list-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px; margin: 0; }
+.students-control { display: flex; flex: 0 0 190px; min-width: 0; flex-direction: column; gap: 6px; }
+.students-sort-control { flex-basis: 244px; }
+.students-control > label { color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.4; }
+.students-select-wrap { position: relative; display: block; min-width: 0; flex: 1; }
+.students-select-wrap::after { content: ''; position: absolute; right: 13px; top: 17px; width: 5px; height: 5px; border-right: 1px solid var(--muted-light); border-bottom: 1px solid var(--muted-light); transform: rotate(45deg); pointer-events: none; }
+.students-control .input-select { appearance: none; width: 100%; min-width: 0; height: 42px; min-height: 42px; padding: 8px 28px 8px 11px; border: 1px solid var(--line); border-radius: 12px; background-color: var(--surface); background-image: none; font-family: var(--font-body); font-size: 12px; }
+.students-control.is-filtered .input-select { border-color: var(--pink-mid); background-color: var(--pink-wash); }
+.students-sort-row { display: flex; align-items: center; gap: 6px; }
+.students-sort-direction { display: inline-flex; flex: 0 0 36px; height: 42px; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--pink-deep); background: var(--surface); }
+.students-sort-direction:hover:not(:disabled) { background: var(--pink-wash); border-color: var(--pink-mid); }
+.students-sort-direction:disabled { opacity: .4; cursor: default; }
+.students-clear-filters { height: 42px; padding: 0 2px; border: 0; background: none; color: var(--pink-deep); font: 500 12px var(--font-body); }
+.students-clear-filters:hover { text-decoration: underline; }
+.students-sort-direction:focus-visible, .students-clear-filters:focus-visible { outline: 2px solid var(--pink-mid); outline-offset: 3px; }
+.students-filter-status { margin: 0 0 12px auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+@media (max-width: 600px) {
+  .students-list-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .students-sort-control { grid-column: 1 / -1; }
+  .students-filter-status { grid-column: 1 / -1; margin: 0; }
+  .students-clear-filters { grid-column: 1 / -1; justify-self: start; height: 28px; }
+}
+@media (max-width: 400px) {
+  .lesson-report-actions .btn { padding-inline: 12px; }
+}
+.session-summary-name { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.session-summary-name:hover { text-decoration: underline; }
+.session-summary-name:focus-visible { outline: 2px solid var(--pink); outline-offset: 4px; border-radius: 4px; }

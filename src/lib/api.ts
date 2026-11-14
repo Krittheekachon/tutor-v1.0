@@ -227,7 +227,7 @@ export interface CreateStudentInput {
   purchasedMinutes: number
   priceBaht: number
   slots: ScheduleSlotInput[]
-  file: File | null
+  files: File[]
 }
 
 export interface CreateCourseInput {
@@ -259,10 +259,10 @@ function validateCourseFields(input: {
   }
 }
 
-async function cleanupCourse(courseId: string, uploadedPath: string | null): Promise<void> {
+async function cleanupCourse(courseId: string, uploadedPath: string | string[] | null): Promise<void> {
   const client = requireSupabase()
   try {
-    if (uploadedPath) await client.storage.from(SUPABASE_BUCKET).remove([uploadedPath])
+    if (uploadedPath) await client.storage.from(SUPABASE_BUCKET).remove(Array.isArray(uploadedPath) ? uploadedPath : [uploadedPath])
   } catch {
     // เก็บกวาดไฟล์เป็น best effort
   }
@@ -284,9 +284,14 @@ export async function createStudentWithCourse(input: CreateStudentInput): Promis
     if (slotError) throw new Error(slotError)
   }
 
+  for (const file of input.files) {
+    const error = validateAttachmentFile(file)
+    if (error) throw new Error(error)
+  }
+
   const studentId = crypto.randomUUID()
   const courseId = crypto.randomUUID()
-  let uploadedPath: string | null = null
+  const uploadedPaths: string[] = []
 
   try {
     const { error: studentError } = await client.from('students').insert({
@@ -324,13 +329,13 @@ export async function createStudentWithCourse(input: CreateStudentInput): Promis
       if (rulesError) throw new Error(toThaiError(rulesError))
     }
 
-    if (input.file) {
-      const uploaded = await uploadAttachment(input.ownerId, courseId, input.file)
-      uploadedPath = uploaded.storage_path
+    for (const file of input.files) {
+      const uploaded = await uploadAttachment(input.ownerId, courseId, file)
+      uploadedPaths.push(uploaded.storage_path)
     }
     return studentId
   } catch (error) {
-    await cleanupCourse(courseId, uploadedPath)
+    await cleanupCourse(courseId, uploadedPaths)
     await client.from('students').delete().eq('id', studentId)
     throw error
   }
@@ -466,23 +471,34 @@ export async function replaceSchedule(input: ReplaceScheduleInput): Promise<void
     if (error) throw new Error(toThaiError(error))
   }
 
-  const { data: futureSessions, error: sessionsError } = await client
-    .from('sessions')
-    .select('id')
-    .eq('course_id', input.courseId)
-    .eq('kind', 'regular')
-    .eq('status', 'scheduled')
-    .gte('session_date', input.effectiveFrom)
-  if (sessionsError) throw new Error(toThaiError(sessionsError))
+  // Read every page: a course with many weekly slots can exceed PostgREST's row limit.
+  const futureSessions: Array<{ id: string }> = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data: page, error: sessionsError } = await client
+      .from('sessions')
+      .select('id')
+      .eq('course_id', input.courseId)
+      .eq('kind', 'regular')
+      .eq('status', 'scheduled')
+      .gte('session_date', input.effectiveFrom)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1)
+    if (sessionsError) throw new Error(toThaiError(sessionsError))
+    futureSessions.push(...((page ?? []) as Array<{ id: string }>))
+    if ((page ?? []).length < PAGE_SIZE) break
+  }
 
   const futureIds = (futureSessions ?? []).map((row) => (row as { id: string }).id)
   if (futureIds.length > 0) {
-    const { data: logs, error: logsError } = await client
-      .from('lesson_logs')
-      .select('session_id')
-      .in('session_id', futureIds)
-    if (logsError) throw new Error(toThaiError(logsError))
-    const taughtIds = new Set((logs ?? []).map((row) => (row as { session_id: string }).session_id))
+    const taughtIds = new Set<string>()
+    for (let index = 0; index < futureIds.length; index += 200) {
+      const { data: logs, error: logsError } = await client
+        .from('lesson_logs')
+        .select('session_id')
+        .in('session_id', futureIds.slice(index, index + 200))
+      if (logsError) throw new Error(toThaiError(logsError))
+      for (const row of logs ?? []) taughtIds.add((row as { session_id: string }).session_id)
+    }
     const deletable = futureIds.filter((id) => !taughtIds.has(id))
     for (let index = 0; index < deletable.length; index += 200) {
       const batch = deletable.slice(index, index + 200)
@@ -680,11 +696,12 @@ export async function uploadAttachment(
   ownerId: string,
   courseId: string,
   file: File,
+  sessionId?: string,
 ): Promise<Attachment> {
   const client = requireSupabase()
   const fileError = validateAttachmentFile(file)
   if (fileError) throw new Error(fileError)
-  const path = `${ownerId}/${courseId}/${crypto.randomUUID()}-${safeStorageFileName(file.name)}`
+  const path = `${ownerId}/${courseId}/${sessionId ? `notes/${sessionId}/` : ''}${crypto.randomUUID()}-${safeStorageFileName(file.name)}`
   const { error: uploadError } = await client.storage
     .from(SUPABASE_BUCKET)
     .upload(path, file, {

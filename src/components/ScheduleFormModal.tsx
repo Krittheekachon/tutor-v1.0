@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { replaceSchedule } from '../lib/api'
 import {
-  addDaysKey,
   formatDuration,
   formatScheduleRule,
   formatThaiDate,
@@ -29,7 +28,7 @@ export function ScheduleFormModal({
 }) {
   const { data, refresh } = useAppData()
   const { pushToast } = useToast()
-  const [effectiveFrom, setEffectiveFrom] = useState(addDaysKey(todayKey(), 1))
+  const [effectiveFrom, setEffectiveFrom] = useState(todayKey())
   const [slots, setSlots] = useState<ScheduleSlotInput[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +44,7 @@ export function ScheduleFormModal({
 
   useEffect(() => {
     if (!open) return
-    setEffectiveFrom(addDaysKey(todayKey(), 1))
+    setEffectiveFrom(todayKey())
     setSlots(
       activeRules.length > 0
         ? activeRules.map((rule) => ({
