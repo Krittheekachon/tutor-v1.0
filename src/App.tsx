@@ -43,6 +43,14 @@ function AuthApp() {
   const [authError, setAuthError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (authLoading) {
+      document.title = 'TutorNote — กำลังโหลด'
+    } else if (!session) {
+      document.title = 'TutorNote — เข้าสู่ระบบ'
+    }
+  }, [authLoading, session])
+
+  useEffect(() => {
     let active = true
     if (!supabase) {
       setAuthLoading(false)
@@ -132,6 +140,10 @@ function AuthenticatedApp({ email, displayName }: { email: string; displayName: 
   useEffect(() => {
     setLocalDisplayName(displayName)
   }, [displayName])
+
+  useEffect(() => {
+    document.title = tab === 'students' ? 'TutorNote — นักเรียน' : 'TutorNote — ตารางสอน'
+  }, [tab])
 
   useEffect(() => {
     const onHashChange = () => setTab(tabFromHash())

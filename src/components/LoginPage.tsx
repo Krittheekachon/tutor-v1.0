@@ -268,6 +268,10 @@ export function LoginPage({ initialError }: { initialError?: string | null }) {
 }
 
 export function MissingConfigPage() {
+  useEffect(() => {
+    document.title = 'TutorNote — ตั้งค่า'
+  }, [])
+
   return (
     <main className="config-page">
       <div className="config-card">
