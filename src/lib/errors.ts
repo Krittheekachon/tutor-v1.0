@@ -29,7 +29,7 @@ export function toThaiError(error: unknown): string {
     return 'Redirect URL ไม่ตรงกับการตั้งค่า Google OAuth กรุณาตรวจสอบ Authorized redirect URI'
   }
   if (lower.includes('signups not allowed') || lower.includes('signup is disabled')) {
-    return 'บัญชี Google นี้ยังไม่ได้รับอนุญาตให้เข้าใช้งาน กรุณาใช้บัญชีเจ้าของที่สร้างไว้ใน Supabase'
+    return 'Google account ใหม่ยังสมัครไม่ได้ เพราะ Supabase ปิด “Allow new users to sign up” อยู่ กรุณาเปิดที่ Authentication → Sign In / Providers'
   }
   if (lower.includes('access_denied') || lower.includes('user denied')) {
     return 'คุณยกเลิกการเข้าสู่ระบบด้วย Google'

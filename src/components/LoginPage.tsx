@@ -52,7 +52,7 @@ function readOAuthErrorFromUrl(): string | null {
     return 'Redirect URL ไม่ตรงกับการตั้งค่า Google OAuth กรุณาตรวจสอบ Authorized redirect URI'
   }
   if (combined.includes('signups not allowed')) {
-    return 'บัญชี Google นี้ยังไม่ได้รับอนุญาตให้เข้าใช้งาน กรุณาใช้บัญชีเจ้าของที่สร้างไว้ใน Supabase'
+    return 'Google account ใหม่ยังสมัครไม่ได้ เพราะ Supabase ปิด “Allow new users to sign up” อยู่ กรุณาเปิดที่ Authentication → Sign In / Providers'
   }
   return description
     ? `เข้าสู่ระบบด้วย Google ไม่สำเร็จ: ${description}`
@@ -163,7 +163,7 @@ export function LoginPage({ initialError }: { initialError?: string | null }) {
             </span>
             <div>
               <h2 id="login-title">เข้าสู่ระบบ</h2>
-              <p>สำหรับเจ้าของตารางสอนเท่านั้น</p>
+              <p>แต่ละบัญชีมีพื้นที่ตารางสอนแยกกัน</p>
             </div>
           </div>
 
@@ -247,9 +247,9 @@ export function LoginPage({ initialError }: { initialError?: string | null }) {
           <div className="login-hint">
             <Icon name="book" size={17} />
             <p>
-              ใช้บัญชีเจ้าของที่สร้างไว้ใน Supabase Dashboard
-              แอปนี้ไม่มีหน้าสมัครสมาชิกและไม่เปิดให้ลงทะเบียนเอง
-              Google จะเข้าสู่ระบบได้เฉพาะบัญชีที่มีสิทธิ์อยู่แล้ว
+              Google account ใหม่จะเริ่มพื้นที่ว่างของตัวเองโดยอัตโนมัติ
+              และไม่เห็นข้อมูลของบัญชีอื่น
+              ส่วนอีเมล/รหัสผ่านใช้กับบัญชีที่สร้างไว้ใน Supabase Dashboard
             </p>
           </div>
 
@@ -261,7 +261,7 @@ export function LoginPage({ initialError }: { initialError?: string | null }) {
       </section>
 
       <footer className="login-footer">
-        <Bow size={20} /> ตารางสอนของฉัน — สำหรับติวเตอร์หนึ่งคน
+        <Bow size={20} /> ตารางสอนของฉัน — หนึ่งบัญชี หนึ่งพื้นที่ส่วนตัว
       </footer>
     </main>
   )
