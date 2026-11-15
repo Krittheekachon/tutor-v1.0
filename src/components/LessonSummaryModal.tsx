@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { formatDuration, formatThaiDateLong, formatTimeRange } from '../lib/date'
+import { formatDuration, formatThaiDateLong } from '../lib/date'
 import { buildLessonSummary } from '../lib/lessonSummary'
-import { formatReportDuration, styleLessonReport } from '../lib/lessonReportStyle'
+import { buildLessonReportText, styleLessonReport } from '../lib/lessonReportStyle'
 import { useAppData } from '../state/AppDataContext'
 import { Button, Modal } from './ui'
 
@@ -27,14 +27,7 @@ export function LessonSummaryModal({ sessionId, onClose }: { sessionId: string |
 
   async function copyText() {
     if (!summary || !student || !course || !log) return
-    const content = [
-      `${student.nickname} (${course.subject})`,
-      formatThaiDateLong(log.taught_on),
-      `สอนวันนี้ ${formatReportDuration(summary.dailyMinutes)}`,
-      `สะสม ${formatReportDuration(summary.cumulativeMinutes)} / ${formatReportDuration(course.purchased_minutes)} เหลือ ${formatReportDuration(summary.remainingMinutes)}`,
-      ...summary.lessons.map(item =>
-        `ครั้งที่ ${item.lessonNumber} · ${item.session ? `${formatTimeRange(item.session.start_time, item.session.end_time)} น.` : 'ไม่ระบุเวลานัด'} · สอนจริง ${formatReportDuration(item.log.actual_minutes)}`),
-    ].join('\n\n')
+    const content = buildLessonReportText(summary, course, student)
     try {
       await navigator.clipboard.writeText(content)
       setCopyStatus('copied')

@@ -1,11 +1,38 @@
-import { formatDuration, formatThaiDate, formatTimeRange } from './date'
+import { formatDuration, formatThaiDate } from './date'
 import type { buildLessonSummary } from './lessonSummary'
 import type { Course, Student } from './types'
+
+const COPY_TEMPLATE = {
+  heading: '🎀 ꒰ อัปเดตชั่วโมงเรียน ꒱ 🧜🏻‍♀️',
+  name: (name: string) => `⭐️ name 𓏬 ${name} ⭐️`,
+  total: (duration: string) => `꒰ ชั่วโมงทั้งหมด ꒱  ${duration}`,
+  cumulative: (duration: string) => `ཐི เรียนไปแล้ว ꒱ ཋྀ  ${duration}`,
+  remaining: (duration: string) => `🫧 คงเหลือ  ${duration}`,
+  completed: '🫧 ครบตามคอร์สแล้ว 🎉',
+}
+
+const displayMinutes = (minutes: number) => Number.isFinite(minutes) ? minutes : 0
+
+export function reportProgress(cumulative: number, total: number) {
+  return total > 0 ? Math.min(1, Math.max(0, displayMinutes(cumulative) / total)) : 0
+}
+
+export function buildLessonReportText(report: Report, course: Course, student: Student) {
+  const duration = (minutes: number) => formatDuration(displayMinutes(minutes))
+  return [
+    COPY_TEMPLATE.heading,
+    COPY_TEMPLATE.name((student.nickname ?? '').trim()),
+    '',
+    COPY_TEMPLATE.total(duration(course.purchased_minutes)),
+    COPY_TEMPLATE.cumulative(duration(report.cumulativeMinutes)),
+    report.remainingMinutes === 0 ? COPY_TEMPLATE.completed : COPY_TEMPLATE.remaining(duration(report.remainingMinutes)),
+  ].join('\n')
+}
 
 type Report = ReturnType<typeof buildLessonSummary>
 
 export function formatReportDuration(minutes: number) {
-  return formatDuration(minutes, 'short').replace(/น\.$/, 'นาที')
+  return formatDuration(displayMinutes(minutes), 'short').replace(/น\.$/, 'นาที')
 }
 
 // Presentation only. The modal continues to preview and download the same PNG.
@@ -15,10 +42,13 @@ export function styleLessonReport(canvas: HTMLCanvasElement, report: Report, cou
   const styles = getComputedStyle(document.documentElement)
   const color = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback
   const ink = color('--ink', '#3d2b34'), muted = color('--muted', '#8c7480')
-  const pink = color('--pink-deep', '#d56891'), soft = color('--pink-wash', '#fff3f7')
+  const secondaryInk = color('--ink-soft', '#5e4854')
+  const pink = color('--pink-deep', '#d56891')
   const chip = color('--pink-soft', '#fde7ee'), border = color('--line', '#f1dce4')
   const font = styles.getPropertyValue('--font-body').trim() || '"Noto Sans Thai", Tahoma, sans-serif'
-  const sizes = { prominent: 36, main: 21, secondary: 17 }
+  // The 800px card is typically displayed around 320px wide in chat.
+  const sizes = { prominent: 36, main: 21, secondary: 17, small: 17, total: 26 }
+  const lineHeight = 1.4
   const width = 800, padding = 48, inner = width - padding * 2
   const draw: Array<() => void> = []
   function setFont(size: number, weight = 400, italic = false) {
@@ -45,11 +75,13 @@ export function styleLessonReport(canvas: HTMLCanvasElement, report: Report, cou
   }
   function text(value: string, x: number, y: number, size = sizes.main, fill = ink, weight = 400, align: CanvasTextAlign = 'left', italic = false) {
     draw.push(() => {
-      setFont(size, weight, italic); ctx!.textBaseline = 'top'; ctx!.fillStyle = fill
+      setFont(size, weight, italic); ctx!.textBaseline = 'alphabetic'; ctx!.fillStyle = fill
       // Use physical coordinates: Safari can misplace aligned Thai text on canvas.
       ctx!.textAlign = 'left'; ctx!.direction = 'ltr'
       const offset = align === 'center' ? ctx!.measureText(value).width / 2 : align === 'right' ? ctx!.measureText(value).width : 0
-      ctx!.fillText(value, x - offset, y)
+      const metrics = ctx!.measureText(value)
+      const baseline = y + size * lineHeight / 2 + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2
+      ctx!.fillText(value, x - offset, baseline)
     })
   }
   function centeredText(value: string, x: number, centerY: number, size: number, fill: string, weight = 400, align: CanvasTextAlign = 'left') {
@@ -57,7 +89,11 @@ export function styleLessonReport(canvas: HTMLCanvasElement, report: Report, cou
       setFont(size, weight); ctx!.textBaseline = 'alphabetic'; ctx!.textAlign = 'left'; ctx!.direction = 'ltr'; ctx!.fillStyle = fill
       const metrics = ctx!.measureText(value)
       const offset = align === 'center' ? metrics.width / 2 : align === 'right' ? metrics.width : 0
-      ctx!.fillText(value, x - offset, centerY + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2)
+      // A shared font reference keeps Thai and numeric header text on one baseline.
+      const reference = ctx!.measureText('อิคคิว คณิตศาสตร์ 0123456789')
+      const ascent = reference.fontBoundingBoxAscent ?? reference.actualBoundingBoxAscent
+      const descent = reference.fontBoundingBoxDescent ?? reference.actualBoundingBoxDescent
+      ctx!.fillText(value, x - offset, centerY + (ascent - descent) / 2)
     })
   }
   function box(x: number, y: number, w: number, h: number, radius: number, fill: string) {
@@ -65,61 +101,49 @@ export function styleLessonReport(canvas: HTMLCanvasElement, report: Report, cou
   }
   let y = 44
   const dateText = formatThaiDate(date)
-  text('TutoNote · สรุปการสอน', padding, y, sizes.secondary, pink, 500)
-  text(dateText, width - padding, y, sizes.secondary, muted, 400, 'right')
-  y += 44
+  const headerCenterY = y + sizes.small * lineHeight / 2
+  centeredText('TutoNote · สรุปการสอน', padding, headerCenterY, sizes.small, pink, 400)
+  centeredText(dateText, width - padding, headerCenterY, sizes.small, muted, 400, 'right')
+  y += sizes.small * lineHeight + 20
   for (const line of wrap(student.nickname, inner, sizes.prominent, 700)) {
-    text(line, padding, y, sizes.prominent, ink, 700); y += 54
+    text(line, padding, y, sizes.prominent, ink, 700); y += sizes.prominent * lineHeight
   }
-  const subjectLines = wrap(course.subject, inner - 32, sizes.secondary, 500)
-  const chipWidth = Math.min(inner, Math.max(...subjectLines.map(line => measure(line, sizes.secondary, 500))) + 32)
-  box(padding, y, chipWidth, subjectLines.length * 26 + 16, 18, chip)
-  subjectLines.forEach((line, index) => centeredText(line, padding + chipWidth / 2, y + 21 + index * 26, sizes.secondary, pink, 500, 'center'))
-  y += subjectLines.length * 26 + 44
-  for (const line of wrap(formatReportDuration(report.dailyMinutes), inner, sizes.prominent, 700)) {
-    text(line, width / 2, y, sizes.prominent, pink, 700, 'center'); y += 54
-  }
-  text('สอนวันนี้', width / 2, y, sizes.secondary, muted, 400, 'center')
-  y += 48
-  box(padding, y, inner, 10, 5, '#e5e7eb')
-  const progress = course.purchased_minutes > 0 ? Math.min(1, Math.max(0, report.cumulativeMinutes / course.purchased_minutes)) : 0
-  if (progress > 0) box(padding, y, inner * progress, 10, 5, color('--pink', '#f3a8c0'))
-  y += 28
-  const remaining = report.overMinutes > 0 ? `เกิน ${formatReportDuration(report.overMinutes)}` : `เหลือ ${formatReportDuration(report.remainingMinutes)}`
-  const cumulative = `สะสม ${formatReportDuration(report.cumulativeMinutes)} / ${formatReportDuration(course.purchased_minutes)}`
-  const statsWidth = inner - measure(remaining, sizes.secondary) - 24
-  const cumulativeLines = wrap(cumulative, statsWidth, sizes.secondary)
-  cumulativeLines.forEach((line, index) => text(line, padding, y + index * 26, sizes.secondary, muted))
-  text(remaining, width - padding, y, sizes.secondary, muted, 400, 'right')
-  y += cumulativeLines.length * 26 + 18
-  if (report.beforeMinutes > 0) {
-    text(`สะสมก่อนวันนี้ ${formatReportDuration(report.beforeMinutes)}`, padding, y, sizes.secondary, muted)
-    y += 36
-  }
-  y += 20
-  for (const item of report.lessons) {
-    const top = y, inset = padding + 24, bodyWidth = inner - 48
-    const badge = `สอนจริง ${formatReportDuration(item.log.actual_minutes)}`
-    const badgeWidth = measure(badge, sizes.secondary, 500) + 24
-    const time = item.session ? `${formatTimeRange(item.session.start_time, item.session.end_time)} น.` : 'ไม่ระบุเวลานัด'
-    const heading = `ครั้งที่ ${item.lessonNumber} · ${time}`
-    const headingLines = wrap(heading, bodyWidth - badgeWidth - 48, sizes.secondary, 600)
-    const headerHeight = Math.max(headingLines.length * 26, 34)
-    const height = 24 + headerHeight + 24
-    box(padding, top, inner, height, 22, soft)
-    // Draw the clock directly, keeping the exported image independent of SVG support.
-    draw.push(() => {
-      ctx!.strokeStyle = pink; ctx!.lineWidth = 2; ctx!.beginPath()
-      ctx!.arc(inset + 12, top + 40, 11, 0, Math.PI * 2); ctx!.stroke()
-      ctx!.beginPath(); ctx!.moveTo(inset + 12, top + 33); ctx!.lineTo(inset + 12, top + 40)
-      ctx!.lineTo(inset + 17, top + 43); ctx!.stroke()
-    })
-    headingLines.forEach((line, lineIndex) => centeredText(line, inset + 34, top + 40 + lineIndex * 26, sizes.secondary, ink, 600))
-    box(width - padding - 24 - badgeWidth, top + 22, badgeWidth, 34, 12, chip)
-    centeredText(badge, width - padding - 36, top + 39, sizes.secondary, pink, 500, 'right')
-    y += height + 24
-  }
-  y += 24
+  y += 16
+  const subjectLines = wrap(course.subject, inner - 28, sizes.secondary, 500)
+  const chipWidth = Math.min(inner, Math.max(...subjectLines.map(line => measure(line, sizes.secondary, 500))) + 28)
+  const chipLineHeight = sizes.secondary * lineHeight
+  box(padding, y, chipWidth, subjectLines.length * chipLineHeight + 12, 18, chip)
+  subjectLines.forEach((line, index) => centeredText(line, padding + chipWidth / 2, y + 6 + chipLineHeight / 2 + index * chipLineHeight, sizes.secondary, secondaryInk, 500, 'center'))
+  y += subjectLines.length * chipLineHeight + 12 + 24
+  const columnWidth = inner / 2
+  const leftCenter = padding + columnWidth / 2
+  const rightCenter = leftCenter + columnWidth
+  text('เรียนไปแล้ว', leftCenter, y, sizes.main, secondaryInk, 500, 'center')
+  text('คงเหลือ', rightCenter, y, sizes.main, secondaryInk, 500, 'center')
+  const cumulative = formatReportDuration(report.cumulativeMinutes)
+  const remaining = report.remainingMinutes === 0 ? 'ครบแล้ว' : formatReportDuration(report.remainingMinutes)
+  // Canvas equivalent of equal grid columns and a responsive, non-wrapping font.
+  // Both values share the size required by the longer value.
+  const valueWidth = columnWidth - 32
+  const heroSize = Math.min(52, 52 * valueWidth / Math.max(measure(cumulative, 52, 700), measure(remaining, 52, 700)))
+  const labelHeight = sizes.main * lineHeight
+  const heroLineHeight = heroSize * lineHeight
+  const labelGap = 12
+  const heroCenterY = y + labelHeight + labelGap + heroLineHeight / 2
+  const blockHeight = labelHeight + labelGap + heroLineHeight
+  centeredText(cumulative, leftCenter, heroCenterY, heroSize, pink, 700, 'center')
+  centeredText(remaining, rightCenter, heroCenterY, heroSize, ink, 700, 'center')
+  setFont(sizes.main, 500)
+  const labelMetrics = ['เรียนไปแล้ว', 'คงเหลือ'].map(value => ctx.measureText(value))
+  const labelTop = (labelHeight - Math.max(...labelMetrics.map(metrics => metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent))) / 2
+  box(width / 2 - 0.5, y + labelTop, 1, blockHeight - labelTop, 0, border)
+  y += blockHeight + 26
+  const progress = reportProgress(report.cumulativeMinutes, course.purchased_minutes)
+  box(padding, y, inner, 16, 8, border)
+  if (progress > 0) box(padding, y, inner * progress, 16, 8, color('--pink', '#f3a8c0'))
+  y += 36
+  text(`จากทั้งหมด ${formatReportDuration(course.purchased_minutes)}`, width / 2, y, sizes.total, secondaryInk, 500, 'center')
+  y += sizes.total * lineHeight + padding
   canvas.width = width * 2
   canvas.height = Math.ceil(y * 2)
   ctx.scale(2, 2); ctx.textBaseline = 'top'
